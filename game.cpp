@@ -24,11 +24,11 @@ Game::Game()
 
 	// Create Obstacles --------------------------------------------
 
-	CreateObstacles();
+	//CreateObstacles();
 
 	// Create PickUps --------------------------------------------
 
-	CreatePickups();
+	//CreatePickups();
 
 	// ---------------------------------------
 
@@ -128,17 +128,17 @@ void Game::Update(float dt)
 	}
 	camera.setCenter(tanks[localId]->position);
 
-	UpdatePickups(dt);
+	//UpdatePickups(dt);
 
-	for (auto& ammoBox : ammoBoxes)
-	{
-		tanks[localId]->CheckPickupCollision(ammoBox.get());
-	}
-
-	for (auto& healthKit : healthKits)
-	{
-		tanks[localId]->CheckPickupCollision(healthKit.get());
-	}
+	// for (auto& ammoBox : ammoBoxes)
+	// {
+	// 	tanks[localId]->CheckPickupCollision(ammoBox.get());
+	// }
+	//
+	// for (auto& healthKit : healthKits)
+	// {
+	// 	tanks[localId]->CheckPickupCollision(healthKit.get());
+	// }
 
 	ui.Update(*tanks[localId]);
 
@@ -171,13 +171,13 @@ void Game::Render(sf::RenderWindow& window)
 
 	window.draw(background);
 
-	decoration.Render(window);
-	for (const auto& obstacle : obstacles)
-	{
-		obstacle->Render(window, false);
-	}
-
-	RenderPickups(window);
+	// decoration.Render(window);
+	// for (const auto& obstacle : obstacles)
+	// {
+	// 	obstacle->Render(window, false);
+	// }
+	//
+	// RenderPickups(window);
 
 	for (auto& [id, tank] : tanks) {
 		tank->Render(window);

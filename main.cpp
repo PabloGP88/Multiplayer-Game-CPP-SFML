@@ -104,7 +104,7 @@ int main() {
 
         // Receive remote tank state
         sf::Packet incomingPacket;
-        sf::IpAddress senderIP;
+        std::optional<sf::IpAddress> senderIP;
 
         unsigned short senderPort;
         if (socket.receive(incomingPacket, senderIP, senderPort) == sf::Socket::Status::Done) {
