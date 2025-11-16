@@ -9,13 +9,13 @@
 #include "gameUI.h"
 #include "healthKit.h"
 #include "obstacle.h"
-#include "Tank.h"
+#include "tank.h"
 #include "random"
 
 class Game
 {
 public:
-    Game();
+    Game(int localPlayer);
 
     void HandleEvents(std::optional<sf::Event> event, int tankId);
     void Update(float dt);

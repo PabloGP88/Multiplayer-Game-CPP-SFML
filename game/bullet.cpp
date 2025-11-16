@@ -3,7 +3,7 @@
 //
 #include "bullet.h"
 #include "utils.h"
-#include "Tank.h"
+#include "tank.h"
 #include <cmath>
 #include "collision_manager.h"
 

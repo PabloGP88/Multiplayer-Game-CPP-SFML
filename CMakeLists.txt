@@ -8,26 +8,28 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(SFML 3 COMPONENTS Graphics Network REQUIRED)
 
 add_executable(tank_game
-        main.cpp
-        Tank.cpp
-        game.h
-        game.cpp
-        Bullet.h
-        bullet.cpp
-        collision_manager.h
-        collision_manager.cpp
-        obstacle.cpp
-        obstacle.h
-        decorations.cpp
-        decorations.h
-        gameUI.cpp
-        gameUI.h
-        pickUp.cpp
-        pickUp.h
-        ammoBox.cpp
-        ammoBox.h
-        healthKit.cpp
-        healthKit.h
+        game/main.cpp
+        game/Tank.cpp
+        game/game.h
+        game/game.cpp
+        game/bullet.h
+        game/bullet.cpp
+        game/collision_manager.h
+        game/collision_manager.cpp
+        game/obstacle.cpp
+        game/obstacle.h
+        game/decorations.cpp
+        game/decorations.h
+        game/gameUI.cpp
+        game/gameUI.h
+        game/pickUp.cpp
+        game/pickUp.h
+        game/ammoBox.cpp
+        game/ammoBox.h
+        game/healthKit.cpp
+        game/healthKit.h
+        server/game_server.cpp
+        server/game_server.h
 )
 
 # Link SFML 3 targets - Use SFML:: namespace (this includes headers automatically)

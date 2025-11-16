@@ -1,9 +1,9 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Network.hpp>
 #include <iostream>
-#include "Utils.h"
-#include "Game.h"
-#include "tank_message.h"
+#include "utils.h"
+#include "game.h"
+#include "protocole_message.h"
 
 int main() {
     Utils::printMsg("Game startup...");
@@ -56,7 +56,7 @@ int main() {
     socket.setBlocking(false);
 
     // Game object
-    Game game;
+    Game game(localId);
     // Add local tank
     game.AddTank(localId, tankColor);
     // Add remote tank (placeholder color)
@@ -66,7 +66,7 @@ int main() {
     Utils::printMsg("Sending to: " + remoteIP.toString() + ":" + std::to_string(remotePort));
 
     sf::Clock clock;
-    float send_rate = 0.1f;
+    float send_rate = 0.05f;
     float send_timer = 0;
 
     while (window.isOpen()) {

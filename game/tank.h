@@ -6,8 +6,8 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 #include <memory>
-#include "tank_message.h"
-#include "Bullet.h"
+#include "protocole_message.h"
+#include "bullet.h"
 #include "pickUp.h"
 
 class CollisionManager;

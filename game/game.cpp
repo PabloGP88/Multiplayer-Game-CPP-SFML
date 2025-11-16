@@ -1,11 +1,13 @@
 //
 // Created by Pablo Gonzalez Poblette on 05/10/25.
 //
-#include "game.h"
+#include "../game.h"
 #include "utils.h"
 
-Game::Game()
-	: collisionManager(1280.f, 960.f), decoration(1280.f, 960.f), ui(uiFont)
+Game::Game(int localPlayer)
+	: collisionManager(1280.f, 960.f), decoration(1280.f, 960.f), ui(uiFont),
+	localId(localPlayer)
+
 {
 	// Initialise the background texture and sprite.
 	if (backgroundTexture.loadFromFile("Assets/tileGrass1.png"))
@@ -30,9 +32,7 @@ Game::Game()
 
 	//CreatePickups();
 
-	// ---------------------------------------
-
-	localId = 0;
+	// --------------------------------------
 
 	tanks[localId] = std::make_unique<Tank>("blue");
 	tanks[localId]->position = {640, 480};
@@ -57,6 +57,11 @@ Game::Game()
 
 void Game::AddTank(int tankId, std::string tankColour) {
 	tanks[tankId] = std::make_unique<Tank>(tankColour);
+	tanks[tankId]->position = {640, 480};
+
+	if (tankId == localId) {
+		camera.setCenter(tanks[localId]->position);
+	}
 	Utils::printMsg("Added tank " + std::to_string(tankId) + " with color: " + tankColour, success);
 }
 
@@ -145,20 +150,17 @@ void Game::Update(float dt)
 }
 
 void Game::NetworkUpdate(float dt, int idTank, TankMessage data) {
-	auto it = tanks.find(idTank);
-	if (it == tanks.end()) {
-		// Determine color based on tank ID
-		std::string color = (idTank == 0) ? "blue" : "red";
-		tanks[idTank] = std::make_unique<Tank>(color);
-		Utils::printMsg("Created remote tank " + std::to_string(idTank) +
-					   " with color: " + color, success);
+	if (tanks.find(idTank) == tanks.end()) {
+		// Map player IDs to colors dynamically
+		std::vector<std::string> colors = {"blue", "red", "green", "black"};
+		std::string color = colors[idTank % colors.size()];
+		AddTank(idTank, color);
 	}
-	Tank* remoteTank = tanks[idTank].get();
 
-	remoteTank->position = { data.x, data.y };
+	Tank* remoteTank = tanks[idTank].get();
+	remoteTank->position = {data.x, data.y};
 	remoteTank->bodyRotation = sf::degrees(data.rotationBody);
 	remoteTank->barrelRotation = sf::degrees(data.rotationBarrel);
-
 	remoteTank->Update(dt, collisionManager);
 }
 

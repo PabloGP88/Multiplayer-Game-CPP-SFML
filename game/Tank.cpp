@@ -1,7 +1,7 @@
 //
 // Created by Pablo Gonzalez Poblette on 05/10/25.
 //
-#include "Tank.h"
+#include "tank.h"
 
 #include "ammoBox.h"
 #include "utils.h"
