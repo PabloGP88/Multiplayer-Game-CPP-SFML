@@ -102,16 +102,11 @@ void game_server::HandleJoinRequest(sf::IpAddress sender, unsigned short port, J
     std::string color = AssignColor();
 
     // Create client info
-    ConnectedClient client;
-    client.ipAddress = sender;
-    client.port = port;
-    client.playerId = playerId;
-    client.lastHeartbeat.restart();
-    clients[playerId] = client;
+    clients.try_emplace(playerId, sender, port, playerId);
+    clients.at(playerId).lastHeartbeat.restart();
 
-    // Create tank for this player
-    tanks[playerId] = std::make_unique<Tank>(color, playerId);
-    tanks[playerId]->position = {640, 480};  // Spawn position
+    tanks[playerId] = std::make_unique<Tank>(color);
+    tanks[playerId]->position = {640, 480};
 
     // Send acceptance to joining client
     JoinAcceptedMessage acceptMsg;

@@ -18,6 +18,9 @@ struct ConnectedClient {
     int playerId;
 
     sf::Clock lastHeartbeat;  // For timeout detection
+
+    ConnectedClient(sf::IpAddress address, unsigned short port, int playerId)
+    : ipAddress(address), port(port), playerId(playerId) {}
 };
 
 struct ServerBullet {

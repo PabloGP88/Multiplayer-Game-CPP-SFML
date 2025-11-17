@@ -66,6 +66,8 @@ public:
 
     bool IsAlive() const { return health > 0; }
 
+    std::string GetColor() const { return colorString; }
+
 private:
     // Temporary placeholder texture, make sue to replace before rendering the sprite.
     sf::Texture placeholder = sf::Texture(sf::Vector2u(1, 1));
