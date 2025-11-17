@@ -237,7 +237,26 @@ void client_main::HandlePlayerLeft(PlayerLeftMessage msg)
 
 void client_main::HandleBulletSpawned(BulletSpawnedMessage msg)
 {
-    Utils::printMsg("Bullet spawned by player " + std::to_string(msg.ownerId), debug);
+    if (!game)
+        return;
+
+    // Create bullet at the position specified by server
+    sf::Vector2f bulletPos(msg.x, msg.y);
+    sf::Angle bulletRotation = sf::degrees(msg.rotation);
+
+    // Find the owner tank
+    auto tankIt = game->tanks.find(msg.ownerId);
+    if (tankIt != game->tanks.end())
+    {
+        // Add bullet to the tank's bullet list
+        tankIt->second->bullets.push_back(
+            std::make_unique<bullet>(bulletPos, bulletRotation, 400.f)
+        );
+
+        Utils::printMsg("Bullet spawned by player " + std::to_string(msg.ownerId) +
+                       " at (" + std::to_string(msg.x) + ", " + std::to_string(msg.y) + ")",
+                       debug);
+    }
 }
 
 void client_main::HandlePlayerHit(PlayerHitMessage msg)
@@ -262,7 +281,9 @@ TankMessage client_main::TankPositionMessage()
     msg.y = game->tanks[playerId]->position.y;
     msg.rotationBody = game->tanks[playerId]->bodyRotation.asDegrees();
     msg.rotationBarrel = game->tanks[playerId]->barrelRotation.asDegrees();
-    msg.shootPressed = false;
+
+    // Check if space key is pressed
+    msg.shootPressed = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space);
 
     return msg;
 }

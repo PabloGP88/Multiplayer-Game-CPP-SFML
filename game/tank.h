@@ -68,6 +68,9 @@ public:
 
     std::string GetColor() const { return colorString; }
 
+    // Bullet management
+    std::vector<std::unique_ptr<bullet>> bullets;
+
 private:
     // Temporary placeholder texture, make sue to replace before rendering the sprite.
     sf::Texture placeholder = sf::Texture(sf::Vector2u(1, 1));
@@ -86,9 +89,6 @@ private:
 
     // Saving current colour here in case we need to send elsewhere.
     std::string colorString;
-
-    // Bullet management
-    std::vector<std::unique_ptr<bullet>> bullets;
 
     float barrelLength = 30.f; // Distance from tank center to barrel tip
 
