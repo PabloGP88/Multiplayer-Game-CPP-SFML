@@ -1,7 +1,7 @@
 //
 // Created by Pablo Gonzalez Poblette on 05/10/25.
 //
-#include "../game.h"
+#include "game.h"
 #include "utils.h"
 
 Game::Game(int localPlayer)

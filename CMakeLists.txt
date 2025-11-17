@@ -30,6 +30,7 @@ add_executable(tank_game
         game/healthKit.h
         server/game_server.cpp
         server/game_server.h
+        server/server_main.cpp
 )
 
 # Link SFML 3 targets - Use SFML:: namespace (this includes headers automatically)

@@ -8,7 +8,7 @@
 #include <cstdint>
 
 // Message types
-enum class Message_Type : uint8_t {
+enum class MessageTypeProtocole : uint8_t {
     // Client -> Server
     JOIN_REQUEST = 0,
     CLIENT_INPUT = 1,
