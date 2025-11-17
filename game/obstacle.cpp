@@ -2,7 +2,7 @@
 // Created by Pablo Gonzalez Poblette on 03/11/25.
 //
 
-#include "../obstacle.h"
+#include "obstacle.h"
 
 obstacle::obstacle(const std::string& texturePath,
                    sf::Vector2f position,

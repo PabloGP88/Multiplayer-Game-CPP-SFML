@@ -65,7 +65,7 @@ class game_server
         void CheckClientTimeouts();
 
         void HandleJoinRequest(sf::IpAddress sender, unsigned short port, JoinRequestMessage msg);
-        void HandleClientInput(ClientInputMessage msg);
+        void HandleTankUpdate(TankMessage msg);
         void HandleDisconnect(int playerId);
 
         void SpawnBullet(int ownerId);

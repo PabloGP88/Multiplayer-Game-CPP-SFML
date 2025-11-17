@@ -68,15 +68,15 @@ void game_server::ProcessMessages() {
                 break;
             }
 
-        case MessageTypeProtocole::CLIENT_INPUT: {
-                ClientInputMessage msg;
+        case MessageTypeProtocole::TANK_UPDATE: {
+                TankMessage msg;
                 if (packet >> msg) {
                     // Update heartbeat
                     auto it = clients.find(msg.playerId);
                     if (it != clients.end()) {
                         it->second.lastHeartbeat.restart();
                     }
-                    HandleClientInput(msg);
+                    HandleTankUpdate(msg);
                 }
                 break;
             }
@@ -130,24 +130,19 @@ void game_server::HandleJoinRequest(sf::IpAddress sender, unsigned short port, J
                    sender.toString() + ":" + std::to_string(port), success);
 }
 
-void game_server::HandleClientInput(ClientInputMessage msg) {
+void game_server::HandleTankUpdate(TankMessage msg) {
     auto tankIt = tanks.find(msg.playerId);
     if (tankIt == tanks.end()) return;
 
     Tank* tank = tankIt->second.get();
 
-    // Apply movement input
-    tank->isMoving.forward = msg.moveForward;
-    tank->isMoving.backward = msg.moveBackward;
-    tank->isMoving.left = msg.turnLeft;
-    tank->isMoving.right = msg.turnRight;
+    // update from client data
+    tank->position = {msg.x, msg.y};
+    tank->bodyRotation = sf::degrees(msg.rotationBody);
+    tank->barrelRotation = sf::degrees(msg.rotationBarrel);
 
-    // Apply aiming inputs
-    tank->isAiming.left = msg.aimLeft;
-    tank->isAiming.right = msg.aimRight;
-
-    // Handle shooting
-    if (msg.shootPressed) {
+    // Perform shooting
+    if (msg.shootPressed && tank->getAmmo() > 0) {
         SpawnBullet(msg.playerId);
     }
 }
@@ -179,15 +174,8 @@ void game_server::HandleDisconnect(int playerId) {
 
 void game_server::UpdateSnapShot(float dt) {
     collisionManager.ClearDynamicColliders();
-
-    // Update all tanks
-    for (auto& [id, tank] : tanks) {
-        tank->Update(dt, collisionManager);
-    }
-
     // Update all bullets
     UpdateBullets(dt);
-
     // Check bullet collisions
     CheckBulletCollisions();
 }

@@ -11,7 +11,7 @@
 enum class MessageTypeProtocole : uint8_t {
     // Client -> Server
     JOIN_REQUEST = 0,
-    CLIENT_INPUT = 1,
+    TANK_UPDATE = 1,
     DISCONNECT = 2,
 
     // Server -> Client
@@ -53,35 +53,24 @@ struct JoinAcceptedMessage {
 };
 
 // Client sends input every frame
-struct ClientInputMessage {
+struct TankMessage {
+    float x, y;
+    float rotationBody;
+    float rotationBarrel;
     int playerId;
+    bool shootPressed;
 
-    // Movement
-    bool moveForward;
-    bool moveBackward;
-    bool turnLeft;
-    bool turnRight;
-
-    // Aiming
-    bool aimLeft;
-    bool aimRight;
-
-    // Actions
-    bool shootPressed;  // True only on the frame space was pressed
-
-    friend sf::Packet& operator<<(sf::Packet& packet, const ClientInputMessage& msg) {
+    friend sf::Packet& operator<<(sf::Packet& packet, const TankMessage& msg) {
         return packet << msg.playerId
-                      << msg.moveForward << msg.moveBackward
-                      << msg.turnLeft << msg.turnRight
-                      << msg.aimLeft << msg.aimRight
+                      << msg.x << msg.y
+                      << msg.rotationBody << msg.rotationBarrel
                       << msg.shootPressed;
     }
 
-    friend sf::Packet& operator>>(sf::Packet& packet, ClientInputMessage& msg) {
+    friend sf::Packet& operator>>(sf::Packet& packet, TankMessage& msg) {
         return packet >> msg.playerId
-                      >> msg.moveForward >> msg.moveBackward
-                      >> msg.turnLeft >> msg.turnRight
-                      >> msg.aimLeft >> msg.aimRight
+                      >> msg.x >> msg.y
+                      >> msg.rotationBody >> msg.rotationBarrel
                       >> msg.shootPressed;
     }
 };

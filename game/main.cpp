@@ -2,124 +2,116 @@
 #include <SFML/Network.hpp>
 #include <iostream>
 #include "utils.h"
-#include "game.h"
-#include "protocole_message.h"
+#include "../client/client_main.h"
+#include "../server/game_server.h"
+
+void RunServer() {
+    Utils::printMsg("=== STARTING DEDICATED SERVER ===", success);
+
+    unsigned short port = 53000;
+
+    try {
+        game_server server(port);
+        server.Update();
+    }
+    catch (const std::exception& e) {
+        Utils::printMsg("Server error: " + std::string(e.what()), error);
+    }
+}
+
+void RunClient() {
+    Utils::printMsg("=== TANK GAME CLIENT ===", success);
+
+    // Use local IP automatically
+    std::optional<sf::IpAddress> serverIP = sf::IpAddress::getLocalAddress();
+
+    if (!serverIP.has_value()) {
+        Utils::printMsg("Failed to get local IP address!", error);
+        return;
+    }
+
+    unsigned short serverPort = 53000;
+
+    Utils::printMsg("Server IP: " + serverIP.value().toString(), info);
+
+    // Create client
+    client_main client(serverIP.value(), serverPort);
+
+    // Connect to server
+    Utils::printMsg("Connecting to " + serverIP.value().toString() + ":" + std::to_string(serverPort) + "...", info);
+    if (!client.Connect()) {
+        Utils::printMsg("Failed to connect to server!", error);
+        return;
+    }
+
+    // Create window
+    sf::RenderWindow window(sf::VideoMode({960, 720}), "Tank Game - Client");
+    window.setFramerateLimit(60);
+
+    Utils::printMsg("=== GAME STARTED ===", success);
+
+    sf::Clock clock;
+
+    while (window.isOpen()) {
+        float dt = clock.restart().asSeconds();
+
+        // Handle events
+        while (const std::optional event = window.pollEvent()) {
+            if (event->is<sf::Event::Closed>()) {
+                client.Disconnect();
+                window.close();
+            }
+
+            if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
+                if (keyPressed->scancode == sf::Keyboard::Scancode::Escape) {
+                    client.Disconnect();
+                    window.close();
+                }
+            }
+
+            // Pass input to game
+            if (client.game) {
+                client.game->HandleEvents(event, client.GetPlayerId());
+            }
+        }
+
+        // Update game locally (movement, collision, etc)
+        if (client.game) {
+            client.game->Update(dt);
+        }
+
+        // Network update (send position, receive messages)
+        client.Update();
+
+        // Render
+        window.clear();
+        if (client.game) {
+            client.game->Render(window);
+        }
+        window.display();
+    }
+
+    Utils::printMsg("=== GAME ENDED ===", warning);
+}
 
 int main() {
-    Utils::printMsg("Game startup...");
+    Utils::printMsg("=== TANK GAME ===", success);
 
-    // Tank choice
-    std::string tankChoice;
-    unsigned short myPort;
-    unsigned short remotePort;
-    std::string tankColor;
-    int localId = 0;   // local player ID
-    int remoteId = 1;  // remote player ID
-
-    Utils::printMsg("Choose your tank:");
-    Utils::printMsg("  [1] Tank A (Blue)  - Port 53000");
-    Utils::printMsg("  [2] Tank B (Red)   - Port 53001");
+    std::string choice;
+    std::cout << "Launch as:" << std::endl;
+    std::cout << "  [1] Server" << std::endl;
+    std::cout << "  [2] Client" << std::endl;
     std::cout << "Choice: ";
-    std::getline(std::cin, tankChoice);
+    std::getline(std::cin, choice);
 
-    if (tankChoice == "1") {
-        myPort = 53000;
-        remotePort = 53001;
-        tankColor = "blue";
-        localId = 0;
-        remoteId = 1;
-        Utils::printMsg("You are Tank A (Blue)", success);
-    } else if (tankChoice == "2") {
-        myPort = 53001;
-        remotePort = 53000;
-        tankColor = "red";
-        localId = 1;
-        remoteId = 0;
-        Utils::printMsg("You are Tank B (Red)", success);
+    if (choice == "1") {
+        RunServer();
+    } else if (choice == "2") {
+        RunClient();
     } else {
         Utils::printMsg("Invalid choice!", error);
         return 1;
     }
 
-    // Window
-    sf::RenderWindow window(sf::VideoMode({640, 480}), "Tank Game - " + tankColor);
-    window.setFramerateLimit(60);
-
-    // Networking
-    sf::UdpSocket socket;
-    sf::IpAddress remoteIP = sf::IpAddress::LocalHost;
-
-    if (socket.bind(myPort) != sf::Socket::Status::Done) {
-        Utils::printMsg("Error binding socket!", error);
-        return 1;
-    }
-    socket.setBlocking(false);
-
-    // Game object
-    Game game(localId);
-    // Add local tank
-    game.AddTank(localId, tankColor);
-    // Add remote tank (placeholder color)
-    game.AddTank(remoteId, (tankColor == "blue" ? "red" : "blue"));
-
-    Utils::printMsg("=== GAME STARTED ===", success);
-    Utils::printMsg("Sending to: " + remoteIP.toString() + ":" + std::to_string(remotePort));
-
-    sf::Clock clock;
-    float send_rate = 0.05f;
-    float send_timer = 0;
-
-    while (window.isOpen()) {
-        float dt = clock.restart().asSeconds();
-        send_timer += dt;
-
-        // Events
-        while (const std::optional event = window.pollEvent()) {
-            if (event->is<sf::Event::Closed>()) {
-                window.close();
-                socket.unbind();
-            }
-            if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
-                if (keyPressed->scancode == sf::Keyboard::Scancode::Escape) {
-                    window.close();
-                    socket.unbind();
-                }
-            }
-            game.HandleEvents(event, localId); // pass localId
-        }
-
-        // Update world
-        game.Update(dt);
-
-        // Send local tank state
-        if (send_timer >= send_rate) {
-            TankMessage message = game.GetNetworkUpdate(localId);
-            message.playerId = localId; // add playerId field in TankMessage
-            sf::Packet packet;
-            packet << message;
-
-            socket.send(packet, remoteIP, remotePort);
-            send_timer = 0;
-        }
-
-        // Receive remote tank state
-        sf::Packet incomingPacket;
-        std::optional<sf::IpAddress> senderIP;
-
-        unsigned short senderPort;
-        if (socket.receive(incomingPacket, senderIP, senderPort) == sf::Socket::Status::Done) {
-            TankMessage receivedMessage;
-            if (incomingPacket >> receivedMessage) {
-                game.NetworkUpdate(dt, receivedMessage.playerId, receivedMessage);
-            }
-        }
-
-        // Render
-        window.clear();
-        game.Render(window); // render all tanks, UI only for local
-        window.display();
-    }
-
-    Utils::printMsg("=== GAME ENDED ===", warning);
     return 0;
 }

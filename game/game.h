@@ -26,12 +26,10 @@ public:
     void AddTank(int tankId, std::string tankColour);
 
     int localId;
-
+    std::unordered_map<int, std::unique_ptr<Tank>> tanks;
 private:
 
     CollisionManager collisionManager;
-
-    std::unordered_map<int, std::unique_ptr<Tank>> tanks;
 
     sf::View camera; // Camera for the game
 
