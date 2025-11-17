@@ -45,7 +45,7 @@ void RunClient() {
     }
 
     // Create window
-    sf::RenderWindow window(sf::VideoMode({960, 720}), "Tank Game - Client");
+    sf::RenderWindow window(sf::VideoMode({480, 360}), "Tank Game - Client");
     window.setFramerateLimit(60);
 
     Utils::printMsg("=== GAME STARTED ===", success);
