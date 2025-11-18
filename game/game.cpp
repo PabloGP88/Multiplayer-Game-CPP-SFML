@@ -123,6 +123,7 @@ void Game::HandleEvents(const std::optional<sf::Event> event, int tankId)
 		if (keyReleased->scancode == sf::Keyboard::Scancode::Space)
 			tanks[tankId]->wantsToShoot = false;
 	}
+
 }
 
 void Game::Update(float dt)
