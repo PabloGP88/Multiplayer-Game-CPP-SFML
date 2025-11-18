@@ -51,6 +51,7 @@ public:
         bool left = false;
     } isAiming;
 
+    bool wantsToShoot;
     // Pickup and damage system
     void CheckPickupCollision(pickUp* pickup);
     void TakeDamage(int damage);

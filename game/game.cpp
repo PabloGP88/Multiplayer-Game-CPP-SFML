@@ -100,8 +100,8 @@ void Game::HandleEvents(const std::optional<sf::Event> event, int tankId)
 
 		if (keyPressed->scancode == sf::Keyboard::Scancode::Space)
 		{
-			tanks[tankId]->Shoot();
-			Utils::printMsg("Bullet Shoot!");
+			tanks[tankId]->wantsToShoot = true;
+			Utils::printMsg("Shoot requested!");
 		}
 
 	}
@@ -120,6 +120,8 @@ void Game::HandleEvents(const std::optional<sf::Event> event, int tankId)
 			tanks[tankId]->isAiming.right = false;
 		if (keyReleased->scancode == sf::Keyboard::Scancode::Left)
 			tanks[tankId]->isAiming.left = false;
+		if (keyReleased->scancode == sf::Keyboard::Scancode::Space)
+			tanks[tankId]->wantsToShoot = false;
 	}
 }
 
@@ -131,6 +133,22 @@ void Game::Update(float dt)
 		tank->Update(dt, collisionManager);
 		tank->UpdateBullets(dt, collisionManager);
 	}
+
+	// Check bullet collisions against all tanks
+	for (auto& [shooterId, shooterTank] : tanks) {
+		for (auto& bullet : shooterTank->bullets) {
+			if (!bullet->IsActive()) continue;
+
+			// Check against all other tanks
+			for (auto& [targetId, targetTank] : tanks) {
+				if (targetId == shooterId) continue; // Don't hit yourself
+				if (!targetTank->IsAlive()) continue;
+
+				bullet->CheckTankCollision(targetTank.get());
+			}
+		}
+	}
+
 	camera.setCenter(tanks[localId]->position);
 
 	//UpdatePickups(dt);
@@ -196,7 +214,8 @@ TankMessage Game::GetNetworkUpdate(int id) {
 		tanks[id]->position.y,
 		tanks[id]->bodyRotation.asDegrees(),
 		tanks[id]->barrelRotation.asDegrees(),
-		id
+		id,
+		tanks[id]->wantsToShoot
 	};
 }
 

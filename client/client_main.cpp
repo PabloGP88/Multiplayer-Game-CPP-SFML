@@ -282,8 +282,7 @@ TankMessage client_main::TankPositionMessage()
     msg.rotationBody = game->tanks[playerId]->bodyRotation.asDegrees();
     msg.rotationBarrel = game->tanks[playerId]->barrelRotation.asDegrees();
 
-    // Check if space key is pressed
-    msg.shootPressed = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space);
+    msg.shootPressed = game->tanks[playerId]->wantsToShoot;
 
     return msg;
 }
