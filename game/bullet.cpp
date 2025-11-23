@@ -60,7 +60,7 @@ bool bullet::CheckTankCollision(Tank* tank)
     // Check if bullet intersects with tank
     if (bulletBounds.findIntersection(tankBounds).has_value())
     {
-        Utils::printMsg("Bullet hit tank!", warning);
+        Utils::printMsg("Bullet hit tank", warning);
         tank->TakeDamage(damage);
         isActive = false;
         return true;

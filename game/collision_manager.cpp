@@ -71,20 +71,38 @@ sf::Vector2f CollisionManager::CalculatePushback(const sf::FloatRect& movingRect
     float minOverlapX = std::min(overlapLeft, overlapRight);
     float minOverlapY = std::min(overlapTop, overlapBottom);
 
-    // Push along the axis with smallest overlap
-    if (minOverlapX < minOverlapY) {
-        // Resolve horizontally
+    float cornerTreshold = 5.0f;
+    float overlapDiff = std::abs(minOverlapX - minOverlapY);
+
+    if (overlapDiff < cornerTreshold) {
+        // Corner collision - resolve BOTH axes
         if (overlapLeft < overlapRight) {
             pushback.x = -overlapLeft;
         } else {
             pushback.x = overlapRight;
         }
-    } else {
-        // Resolve vertically
+
         if (overlapTop < overlapBottom) {
             pushback.y = -overlapTop;
         } else {
             pushback.y = overlapBottom;
+        }
+    } else {
+        // Normal collision - resolve the smaller axis
+        if (minOverlapX < minOverlapY) {
+            // Resolve horizontally
+            if (overlapLeft < overlapRight) {
+                pushback.x = -overlapLeft;
+            } else {
+                pushback.x = overlapRight;
+            }
+        } else {
+            // Resolve vertically
+            if (overlapTop < overlapBottom) {
+                pushback.y = -overlapTop;
+            } else {
+                pushback.y = overlapBottom;
+            }
         }
     }
 

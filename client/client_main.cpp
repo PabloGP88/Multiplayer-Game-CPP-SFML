@@ -168,6 +168,17 @@ void client_main::ReceiveMessages()
                 break;
             }
 
+            case MessageTypeProtocole::OBSTACLE_DATA:
+            {
+                ObstacleSpawnedMessage msg;
+                if (packet >> msg)
+                {
+                    HandleObstacles(msg);
+                }
+                break;
+            }
+
+
             default:
                 Utils::printMsg("Unknown message type: " + std::to_string(typeValue), warning);
                 break;
@@ -256,6 +267,8 @@ void client_main::HandleBulletSpawned(BulletSpawnedMessage msg)
         Utils::printMsg("Bullet spawned by player " + std::to_string(msg.ownerId) +
                        " at (" + std::to_string(msg.x) + ", " + std::to_string(msg.y) + ")",
                        debug);
+
+        tankIt->second->DecreaseAmmo(1); // Reduce owner's ammo
     }
 }
 
@@ -285,4 +298,35 @@ TankMessage client_main::TankPositionMessage()
     msg.shootPressed = game->tanks[playerId]->wantsToShoot;
 
     return msg;
+}
+
+void client_main::HandleObstacles(ObstacleSpawnedMessage msg)
+{
+    if (!game)
+        return;
+
+    Utils::printMsg("Obs data received mate", info);
+
+    for (const auto& obstacle: msg.obstacles)
+    {
+        sf::Vector2f position(obstacle.x, obstacle.y);
+        sf::Vector2f scale(obstacle.scaleX, obstacle.scaleY);
+
+        Utils::printMsg(obstacle.texture, info);
+
+        auto obs = std::make_unique<class obstacle>(
+            obstacle.texture,
+            position,
+            sf::Vector2f(obstacle.width, obstacle.height),
+            sf::Vector2f(0, 0),
+            scale
+        );
+
+        // Add it to the collision manager
+        game->collisionManager.AddStaticCollider(obs->GetBounds());
+
+        game->obstacles.push_back(std::move(obs));
+
+
+    }
 }

@@ -21,9 +21,14 @@ public:
 
     sf::Sprite sprite;
 
+    sf::Vector2f GetPosition() { return position;}
+    sf::Vector2f GetScale() { return scale;}
+
+    std::string GetTexturePath() const { return  texturePath;}
+
 private:
     sf::Texture texture;
-
+    std::string texturePath;
 
     sf::Vector2f position;
     sf::Vector2f colliderSize;

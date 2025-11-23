@@ -15,14 +15,15 @@ enum class MessageTypeProtocole : uint8_t {
     DISCONNECT = 2,
 
     // Server -> Client
-    JOIN_ACCEPTED = 10,
-    JOIN_REJECTED = 11,
-    GAME_STATE = 12,
-    PLAYER_JOINED = 13,
-    PLAYER_LEFT = 14,
-    BULLET_SPAWNED = 15,
-    PLAYER_HIT = 16,
-    PLAYER_DIED = 17,
+    JOIN_ACCEPTED = 3,
+    JOIN_REJECTED = 4,
+    GAME_STATE = 5,
+    PLAYER_JOINED = 6,
+    PLAYER_LEFT = 7,
+    BULLET_SPAWNED = 8,
+    PLAYER_HIT = 9,
+    PLAYER_DIED = 10,
+    OBSTACLE_DATA = 11,
 };
 
 // Client requests to join
@@ -199,5 +200,45 @@ struct PlayerHitMessage {
 
     friend sf::Packet& operator>>(sf::Packet& packet, PlayerHitMessage& msg) {
         return packet >> msg.victimId >> msg.shooterId >> msg.damage >> msg.newHealth;
+    }
+};
+
+struct ObstacleSpawnedMessage
+{
+    struct ObstacleData
+    {
+        std::string texture;
+        float x, y;
+        float width, height;
+        float scaleX, scaleY;
+    };
+
+    std::vector<ObstacleData> obstacles;
+
+    friend sf::Packet& operator<<(sf::Packet& packet, const ObstacleSpawnedMessage& msg)
+    {
+        packet << static_cast<uint32_t>(msg.obstacles.size());
+        for (const auto& p : msg.obstacles)
+        {
+            packet << p.x << p.y << p.width << p.height << p.scaleX << p.scaleY << p.texture;
+        }
+        return packet;
+    }
+
+    friend sf::Packet& operator>>(sf::Packet& packet, ObstacleSpawnedMessage& msg)
+    {
+        uint32_t count;
+        packet >> count;
+        msg.obstacles.clear();
+        msg.obstacles.reserve(count);
+
+        for (uint32_t i = 0; i < count; i++) {
+            ObstacleSpawnedMessage::ObstacleData obs;
+            packet >> obs.x >> obs.y >> obs.width >> obs.height
+                   >> obs.scaleX >> obs.scaleY >> obs.texture;
+
+            msg.obstacles.push_back(obs);
+        }
+        return packet;
     }
 };

@@ -11,7 +11,7 @@ class Tank;
 class bullet
 {
 public:
-    bullet(sf::Vector2f startPosition, sf::Angle direction, float speed = 400.f, int damage = 25);
+    bullet(sf::Vector2f startPosition, sf::Angle direction, float speed = 800.f, int damage = 10);
 
     void Update(float dt, CollisionManager& collisionManager);
     void Render(sf::RenderWindow& window);

@@ -25,6 +25,7 @@ class client_main
         // Input Logic
         void SendPosition();
 
+        void HandleObstacles(ObstacleSpawnedMessage msg);
         // Network Methods
         void ReceiveMessages();
         void HandleJoinAccepted(JoinAcceptedMessage msg);

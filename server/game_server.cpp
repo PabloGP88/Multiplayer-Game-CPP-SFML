@@ -16,9 +16,13 @@ game_server::game_server(unsigned short port)
     }
 
     socket.setBlocking(false);
-    Utils::printMsg("=== DEDICATED SERVER STARTED ===", success);
+
+    CreateObstacles();
+
+    Utils::printMsg("=== SERVER STARTED ===", success);
     Utils::printMsg("Port: " + std::to_string(port), info);
     Utils::printMsg("Tick Rate: " + std::to_string(TICK_RATE) + " Hz", info);
+    Utils::printMsg("Obstacles created: " + std::to_string(obstacles.size()), success);
 }
 
 void game_server::Update() {
@@ -117,6 +121,8 @@ void game_server::HandleJoinRequest(sf::IpAddress sender, unsigned short port, J
     acceptPacket << static_cast<uint8_t>(MessageTypeProtocole::JOIN_ACCEPTED) << acceptMsg;
     socket.send(acceptPacket, sender, port);
 
+    SendObstaclesPosition(playerId);
+
     // Notify all other clients about new player
     PlayerJoinedMessage joinMsg;
     joinMsg.playerId = playerId;
@@ -141,9 +147,14 @@ void game_server::HandleTankUpdate(TankMessage msg) {
     tank->bodyRotation = sf::degrees(msg.rotationBody);
     tank->barrelRotation = sf::degrees(msg.rotationBarrel);
 
-    // Perform shooting
-    if (msg.shootPressed && tank->getAmmo() > 0) {
-        SpawnBullet(msg.playerId);
+    // Perform shooting just ones per press
+    auto clientIt = clients.find(msg.playerId);
+    if (clientIt != clients.end()) {
+        bool prevState = clientIt->second.prevShootState;
+        if (msg.shootPressed && !prevState && tank->getAmmo() > 0) {
+            SpawnBullet(msg.playerId);
+        }
+        clientIt->second.prevShootState = msg.shootPressed;
     }
 }
 
@@ -198,11 +209,9 @@ void game_server::SpawnBullet(int ownerId) {
     ServerBullet serverBullet;
     serverBullet.bulletId = nextBulletId++;
     serverBullet.ownerId = ownerId;
-    serverBullet.bulletObj = std::make_unique<bullet>(barrelTip, tank->barrelRotation, 400.f);
+    serverBullet.bulletObj = std::make_unique<bullet>(barrelTip, tank->barrelRotation);
     bullets.push_back(std::move(serverBullet));
 
-    // Decrease ammo
-    tank->AddAmmo(-1);
 
     // Broadcast bullet spawn
     BulletSpawnedMessage msg;
@@ -355,6 +364,8 @@ std::string game_server::AssignColor() {
             return availableColors[i];
         }
     }
+
+    printf("NO COLOR AVILABLE");
     return "blue";  // Fallback
 }
 
@@ -365,4 +376,64 @@ void game_server::FreeColor(const std::string& color) {
             break;
         }
     }
+}
+
+void game_server::CreateObstacles()
+{
+    int numRocks = 10;
+    int minSize = 3;
+    int maxSize = 6;
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> posX(0.f, 800.f);
+    std::uniform_real_distribution<float> posY(0.f, 700);
+    std::uniform_int_distribution<int> sizeDist(minSize, maxSize);
+
+    for (int i = 0; i < numRocks; i++)
+    {
+        sf::Vector2f pos = { posX(gen), posY(gen) };
+        int size = sizeDist(gen);
+        sf::Vector2f scale(size, size);
+
+        auto rock = std::make_unique<obstacle>("Assets/Rock.png", pos,
+                      sf::Vector2f(0,0), sf::Vector2f(0,0), scale);
+
+        collisionManager.AddStaticCollider(rock->GetBounds());
+
+        std::uniform_int_distribution<int> brightness(200, 255); // Range for lightness
+
+        sf::Color tint(brightness(gen), brightness(gen), brightness(gen));
+
+        rock->sprite.setColor(tint);
+
+        obstacles.push_back(std::move(rock));
+    }
+}
+
+void game_server::SendObstaclesPosition(int playerId)
+{
+    ObstacleSpawnedMessage obs;
+
+    for (const auto& obstacle: obstacles)
+    {
+        ObstacleSpawnedMessage::ObstacleData d;
+
+        d.x = obstacle->GetPosition().x;
+        d.y = obstacle->GetPosition().y;
+        d.width = obstacle->GetBounds().size.x;
+        d.height = obstacle->GetBounds().size.y;
+        d.scaleX = obstacle->GetScale().x;
+        d.scaleY = obstacle->GetScale().y;
+        d.texture = obstacle->GetTexturePath();
+
+        obs.obstacles.push_back(d);
+    }
+
+    sf::Packet packet;
+    packet << static_cast<uint8_t>(MessageTypeProtocole::OBSTACLE_DATA) << obs;
+
+    SendToClient(playerId, packet);
+
+    Utils::printMsg("Sent obstacle stuff to client", debug);
 }

@@ -27,15 +27,8 @@ public:
 
     int localId;
     std::unordered_map<int, std::unique_ptr<Tank>> tanks;
-private:
 
     CollisionManager collisionManager;
-
-    sf::View camera; // Camera for the game
-
-    // Temporary placeholder texture, make sue to replace before rendering the sprite.
-    sf::Texture placeholder = sf::Texture(sf::Vector2u(1, 1));
-    sf::Texture backgroundTexture;
 
     // Vector of obstacles to store them and render them all in a foreach loop
     std::vector<std::unique_ptr<obstacle>> obstacles;
@@ -44,6 +37,15 @@ private:
     // Bullet boxes and Health
     std::vector<std::unique_ptr<ammoBox>> ammoBoxes;
     std::vector<std::unique_ptr<healthKit>> healthKits;
+
+private:
+
+    sf::View camera; // Camera for the game
+
+    // Temporary placeholder texture, make sue to replace before rendering the sprite.
+    sf::Texture placeholder = sf::Texture(sf::Vector2u(1, 1));
+    sf::Texture backgroundTexture;
+
 
     void CreatePickups();
     void UpdatePickups(float dt);

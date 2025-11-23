@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <memory>
 #include "../game/collision_manager.h"
+#include "../game/obstacle.h"
 #include "../game/tank.h"
 #include "../game/protocole_message.h"
 
@@ -18,9 +19,10 @@ struct ConnectedClient {
     int playerId;
 
     sf::Clock lastHeartbeat;  // For timeout detection
+    bool prevShootState = false;  // Track previous shoot state for edge detection
 
     ConnectedClient(sf::IpAddress address, unsigned short port, int playerId)
-    : ipAddress(address), port(port), playerId(playerId) {}
+    : ipAddress(address), port(port), playerId(playerId), prevShootState(false) {}
 };
 
 struct ServerBullet {
@@ -28,6 +30,7 @@ struct ServerBullet {
     std::unique_ptr<bullet> bulletObj;
     int ownerId;
 };
+
 
 class game_server
 {
@@ -58,12 +61,15 @@ class game_server
         const float TICK_RATE = 60.0f;  // 60 ticks per second
         const float CLIENT_TIMEOUT = 5.0f;  // 5 seconds timeout
 
+        std::vector<std::unique_ptr<obstacle>> obstacles;
+
         // Methods
         void ProcessMessages();
         void UpdateSnapShot(float dt);
         void SendGameSnapShot();
         void CheckClientTimeouts();
 
+        void SendObstaclesPosition(int playerId);
         void HandleJoinRequest(sf::IpAddress sender, unsigned short port, JoinRequestMessage msg);
         void HandleTankUpdate(TankMessage msg);
         void HandleDisconnect(int playerId);
@@ -71,6 +77,8 @@ class game_server
         void SpawnBullet(int ownerId);
         void UpdateBullets(float dt);
         void CheckBulletCollisions();
+
+        void CreateObstacles();
 
         void BroadcastMessage(sf::Packet& packet);
         void SendToClient(int playerId, sf::Packet& packet);
@@ -80,4 +88,3 @@ class game_server
 
         GameStateMessage BuildGameState();
 };
-

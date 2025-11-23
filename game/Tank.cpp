@@ -10,8 +10,7 @@
 
 Tank::Tank(std::string colour)
 {
-	// Save input colour in case we need it later.
-	colorString = "blue";
+	colorString = colour;
 	// Load textures.
 	// FIXME: loadFromFile returns a bool if texture was loaded successfully. We should use it to check for errors.
 	bodyTexture.loadFromFile("Assets/" + colour + "Tank.png");
@@ -185,7 +184,7 @@ void Tank::TakeDamage(int damage)
 	if (health < 0)
 		health = 0;
 
-	Utils::printMsg("Tank took " + std::to_string(damage) + " damage! Health: " +
+	Utils::printMsg("Tank took " + std::to_string(damage) + " damage. Health: " +
 				   std::to_string(health), warning);
 
 	if (health == 0)
@@ -246,4 +245,12 @@ int Tank::getMaxHealth()
 int Tank::getMaxAmmo()
 {
 	return maxAmmo;
+}
+
+void Tank::DecreaseAmmo(int amount)
+{
+	if (ammo >= 1)
+	{
+		ammo -= amount;
+	}
 }

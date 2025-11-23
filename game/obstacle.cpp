@@ -14,7 +14,8 @@ obstacle::obstacle(const std::string& texturePath,
       colliderSize(colliderSize),
       colliderOffset(colliderOffset),
       scale(scale),
-      debugColor(255, 0, 0, 255)
+      debugColor(255, 0, 0, 255),
+      texturePath(texturePath)
 {
 
     if (texture.loadFromFile(texturePath))

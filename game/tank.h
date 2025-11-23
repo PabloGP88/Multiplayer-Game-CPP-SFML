@@ -72,6 +72,8 @@ public:
     // Bullet management
     std::vector<std::unique_ptr<bullet>> bullets;
 
+    void DecreaseAmmo(int amount);
+
 private:
     // Temporary placeholder texture, make sue to replace before rendering the sprite.
     sf::Texture placeholder = sf::Texture(sf::Vector2u(1, 1));
@@ -84,7 +86,7 @@ private:
     sf::Sprite body = sf::Sprite(placeholder);
     sf::Sprite barrel = sf::Sprite(placeholder);
 
-    float movementSpeed = 150.f;
+    float movementSpeed = 200.f;
     float rotationSpeed = 200.f;
     float barrelSpeed = 300.0f;
 
@@ -96,6 +98,6 @@ private:
     const int maxHealth = 100;
     const int maxAmmo = 20;
 
-    int health = 50;
+    int health = 100;
     int ammo = 20;
 };

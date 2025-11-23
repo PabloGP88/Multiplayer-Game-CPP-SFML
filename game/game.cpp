@@ -12,8 +12,6 @@ Game::Game(int localPlayer)
 	// Initialise the background texture and sprite.
 	if (backgroundTexture.loadFromFile("Assets/tileGrass1.png"))
 	{
-		Utils::printMsg("Texture Loaded Successfully!");
-
 		backgroundTexture.setRepeated(true);
 	}
 	else
@@ -49,7 +47,7 @@ Game::Game(int localPlayer)
 
 	if (!uiFont.openFromFile("Assets/MomoTrustDisplay-Regular.ttf")) // Use your font file
 	{
-		Utils::printMsg("Could not load UI font!", error);
+		Utils::printMsg("No font", error);
 	}
 
 	ui = gameUI(uiFont);
@@ -100,8 +98,9 @@ void Game::HandleEvents(const std::optional<sf::Event> event, int tankId)
 
 		if (keyPressed->scancode == sf::Keyboard::Scancode::Space)
 		{
-			tanks[tankId]->wantsToShoot = true;
-			Utils::printMsg("Shoot requested!");
+			if (tanks[tankId]->getAmmo() > 0)
+				tanks[tankId]->wantsToShoot = true;
+			Utils::printMsg("Buddy wants to shoot");
 		}
 
 	}
@@ -192,11 +191,11 @@ void Game::Render(sf::RenderWindow& window)
 
 	window.draw(background);
 
-	// decoration.Render(window);
-	// for (const auto& obstacle : obstacles)
-	// {
-	// 	obstacle->Render(window, false);
-	// }
+	decoration.Render(window);
+	for (const auto& obstacle : obstacles)
+	{
+		obstacle->Render(window, false);
+	}
 	//
 	// RenderPickups(window);
 
@@ -243,7 +242,7 @@ void Game::CreateObstacles()
 
 		collisionManager.AddStaticCollider(rock->GetBounds());
 
-		std::uniform_int_distribution<int> brightness(150, 255); // Range for lightness
+		std::uniform_int_distribution<int> brightness(200, 255); // Range for lightness
 
 		sf::Color tint(brightness(gen), brightness(gen), brightness(gen));
 
