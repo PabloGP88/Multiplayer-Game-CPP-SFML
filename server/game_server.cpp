@@ -30,7 +30,7 @@ void game_server::Update() {
     float tickTime = 1.0f / TICK_RATE;
     float accumulator = 0.0f;
 
-    Utils::printMsg("Server running... waiting for players", success);
+    Utils::printMsg("Waiting for players to join...", success);
 
     while (true) {
         float dt = clock.restart().asSeconds();

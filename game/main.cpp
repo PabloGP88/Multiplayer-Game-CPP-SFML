@@ -22,7 +22,7 @@ void RunServer() {
 void RunClient() {
     Utils::printMsg("=== TANK GAME CLIENT ===", success);
 
-    // Use local IP automatically
+    // Use local IP - TODO: Talk this to teacher to see if is really what I need to do
     std::optional<sf::IpAddress> serverIP = sf::IpAddress::getLocalAddress();
 
     if (!serverIP.has_value()) {
@@ -75,12 +75,12 @@ void RunClient() {
             }
         }
 
-        // Update game locally (movement, collision, etc)
+        // Update game locally
         if (client.game) {
             client.game->Update(dt);
         }
 
-        // Network update (send position, receive messages)
+        // Network update
         client.Update();
 
         // Render

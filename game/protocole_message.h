@@ -28,7 +28,7 @@ enum class MessageTypeProtocole : uint8_t {
 
 // Client requests to join
 struct JoinRequestMessage {
-    std::string playerName;  // Optional for now
+    std::string playerName;
 
     friend sf::Packet& operator<<(sf::Packet& packet, const JoinRequestMessage& msg) {
         return packet << msg.playerName;
