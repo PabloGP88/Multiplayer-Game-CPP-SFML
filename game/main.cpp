@@ -6,7 +6,7 @@
 #include "../server/game_server.h"
 
 void RunServer() {
-    Utils::printMsg("=== STARTING DEDICATED SERVER ===", success);
+    Utils::printMsg("=== STARTING  SERVER ===", success);
 
     unsigned short port = 53000;
 

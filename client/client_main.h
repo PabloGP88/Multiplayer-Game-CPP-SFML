@@ -28,6 +28,7 @@ class client_main
         void HandleObstacles(ObstacleSpawnedMessage msg);
         void HandlePlayerDied(PlayerDiedMessage msg);
         void HandlePlayerRespawned(PlayerRespawnedMessage msg);
+        void HandleBulletDestroyed(BulletDestroyedMessage msg);
         // Network Methods
         void ReceiveMessages();
         void HandleJoinAccepted(JoinAcceptedMessage msg);

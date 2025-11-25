@@ -73,6 +73,9 @@ public:
 
     void DecreaseAmmo(int amount);
 
+    sf::Sprite body = sf::Sprite(placeholder);
+    sf::Sprite barrel = sf::Sprite(placeholder);
+
 private:
     sf::Texture placeholder = sf::Texture(sf::Vector2u(1, 1));
 
@@ -81,8 +84,7 @@ private:
 
     // These can (and probably should) be replaced with std::optional or unique pointers,
     // to remove the need to use placeholder textures for sprite initialisation.
-    sf::Sprite body = sf::Sprite(placeholder);
-    sf::Sprite barrel = sf::Sprite(placeholder);
+
 
     float movementSpeed = 200.f;
     float rotationSpeed = 200.f;

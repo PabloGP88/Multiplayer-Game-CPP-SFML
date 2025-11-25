@@ -179,25 +179,24 @@ void client_main::ReceiveMessages()
             }
 
             case MessageTypeProtocole::PLAYER_DIED:
+                {
+                    PlayerDiedMessage msg;
+                    if (packet >> msg)
                     {
-                        PlayerDiedMessage msg;
-                        if (packet >> msg)
-                        {
-                            HandlePlayerDied(msg);
-                        }
-                        break;
+                        HandlePlayerDied(msg);
                     }
+                    break;
+                }
 
             case MessageTypeProtocole::PLAYER_RESPAWNED:
+                {
+                    PlayerRespawnedMessage msg;
+                    if (packet >> msg)
                     {
-                        PlayerRespawnedMessage msg;
-                        if (packet >> msg)
-                        {
-                            HandlePlayerRespawned(msg);
-                        }
-                        break;
+                        HandlePlayerRespawned(msg);
                     }
-
+                    break;
+                }
 
             default:
                 Utils::printMsg("Unknown message type: " + std::to_string(typeValue), warning);
@@ -297,6 +296,11 @@ void client_main::HandlePlayerHit(PlayerHitMessage msg)
     if (!game)
         return;
 
+    auto tankIt = game->tanks.find(msg.victimId);
+    if (tankIt != game->tanks.end()) {
+        tankIt->second->TakeDamage(msg.damage);
+    }
+
     Utils::printMsg("Player " + std::to_string(msg.victimId) + " was hit for " +
                    std::to_string(msg.damage) + " damage", warning);
 }
@@ -377,5 +381,21 @@ void client_main::HandlePlayerRespawned(PlayerRespawnedMessage msg)
 
         Utils::printMsg("Player " + std::to_string(msg.playerId) + " respawned at (" +
                        std::to_string(msg.x) + ", " + std::to_string(msg.y) + ")", success);
+    }
+}
+
+void client_main::HandleBulletDestroyed(BulletDestroyedMessage msg)
+{
+    Utils::printMsg("IT GOT TO BULLET DESTROY FUCK YEAH",debug);
+    if (!game)
+        return;
+
+    for (auto& [tankId, tank] : game->tanks)
+    {
+        for (auto it = tank->bullets.begin(); it != tank->bullets.end(); ++it)
+        {
+            //  TODO: Add a way to track bullet ids in the client
+            (*it)->Deactivate();
+        }
     }
 }

@@ -185,11 +185,14 @@ void game_server::HandleDisconnect(int playerId) {
 
 void game_server::UpdateSnapShot(float dt) {
     collisionManager.ClearDynamicColliders();
-    // Check bullet collisions
-    CheckBulletCollisions();
+
     // Update all bullets
     UpdateBullets(dt);
 
+    // Check bullet collisions
+    //CheckBulletCollisions();
+
+    CheckPendingRespawns();
 }
 
 void game_server::SpawnBullet(int ownerId) {
@@ -245,18 +248,25 @@ void game_server::UpdateBullets(float dt) {
 }
 
 void game_server::CheckBulletCollisions() {
+
     for (auto bulletIt = bullets.begin(); bulletIt != bullets.end();) {
         bool bulletDestroyed = false;
 
         // Check against all tanks except the owner
         for (auto& [tankId, tank] : tanks) {
-            if (tankId == bulletIt->ownerId) continue;
-            if (!tank->IsAlive()) continue;
+            if (tankId == bulletIt->ownerId)
+                continue;
+
+            if (!tank->IsAlive())
+                continue;
+
 
             if (bulletIt->bulletObj->CheckTankCollision(tank.get())) {
+
+                Utils::printMsg("LOL");
                 // HIT
                 int damage = bulletIt->bulletObj->GetDamage();
-                tank->TakeDamage(damage);
+
 
                 // Send hit message
                 PlayerHitMessage hitMsg;
@@ -265,13 +275,11 @@ void game_server::CheckBulletCollisions() {
                 hitMsg.damage = damage;
                 hitMsg.newHealth = tank->getHealth();
 
+                Utils::printMsg( std::to_string(hitMsg.newHealth));
                 sf::Packet packet;
                 packet << static_cast<uint8_t>(MessageTypeProtocole::PLAYER_HIT) << hitMsg;
                 BroadcastMessage(packet);
 
-                Utils::printMsg("Player " + std::to_string(bulletIt->ownerId) +
-                               " hit player " + std::to_string(tankId) +
-                               " for " + std::to_string(damage) + " damage", success);
 
                 if (!tank->IsAlive()) {
                     Utils::printMsg("Player " + std::to_string(tankId) + " is gone", error);
@@ -281,12 +289,10 @@ void game_server::CheckBulletCollisions() {
                     dieMsg.killerId = bulletIt->ownerId;
 
                     sf::Packet playerDeathPacket;
-
                     playerDeathPacket << static_cast<uint8_t>(MessageTypeProtocole::PLAYER_DIED) << dieMsg;
                     BroadcastMessage(playerDeathPacket);
 
                     pendingRespawns.emplace_back(tankId, bulletIt->ownerId);
-
                 }
 
                 bulletDestroyed = true;
@@ -454,12 +460,15 @@ void game_server::SendObstaclesPosition(int playerId)
 
 void game_server::CheckPendingRespawns()
 {
-    for (auto i = pendingRespawns.begin(); i != pendingRespawns.end(); ++i)
+    for (auto i = pendingRespawns.begin(); i != pendingRespawns.end();)
     {
         if (i->deathTimer.getElapsedTime().asSeconds() >= RESPAWN_TIME)
         {
             RespawnPlayer(i->victimId);
-            pendingRespawns.erase(i);
+            i = pendingRespawns.erase(i);
+        } else
+        {
+            ++i;
         }
     }
 }

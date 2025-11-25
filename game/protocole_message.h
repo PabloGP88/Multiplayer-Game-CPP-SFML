@@ -7,7 +7,6 @@
 #include <vector>
 #include <cstdint>
 
-// Message types
 enum class MessageTypeProtocole : uint8_t {
     // Client -> Server
     JOIN_REQUEST = 0,
@@ -24,7 +23,8 @@ enum class MessageTypeProtocole : uint8_t {
     PLAYER_HIT = 9,
     PLAYER_DIED = 10,
     OBSTACLE_DATA = 11,
-    PLAYER_RESPAWNED = 12
+    PLAYER_RESPAWNED = 12,
+    //BULLET_DESTROYED = 13
 };
 
 // Client requests to join
@@ -269,5 +269,17 @@ struct ObstacleSpawnedMessage
             msg.obstacles.push_back(obs);
         }
         return packet;
+    }
+};
+
+struct BulletDestroyedMessage {
+    int bulletId;
+
+    friend sf::Packet& operator<<(sf::Packet& packet, const BulletDestroyedMessage& msg) {
+        return packet << msg.bulletId;
+    }
+
+    friend sf::Packet& operator>>(sf::Packet& packet, BulletDestroyedMessage& msg) {
+        return packet >> msg.bulletId;
     }
 };
