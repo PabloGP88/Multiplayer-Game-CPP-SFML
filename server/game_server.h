@@ -31,6 +31,17 @@ struct ServerBullet {
     int ownerId;
 };
 
+struct RespawnClient
+{
+    int victimId;
+    int killerId;
+    sf::Clock deathTimer;
+
+    RespawnClient(int pId, int kId) : victimId(pId), killerId(kId) {
+        deathTimer.restart();
+    }
+};
+
 
 class game_server
 {
@@ -60,8 +71,13 @@ class game_server
         // Server settings
         const float TICK_RATE = 60.0f;  // 60 ticks per second
         const float CLIENT_TIMEOUT = 5.0f;  // 5 seconds timeout
+        const float RESPAWN_TIME = 2.0f; // 2 seconds
 
         std::vector<std::unique_ptr<obstacle>> obstacles;
+
+        // Death and respawn tracking
+        std::vector<RespawnClient> pendingRespawns;
+
 
         // Methods
         void ProcessMessages();
@@ -82,6 +98,9 @@ class game_server
 
         void BroadcastMessage(sf::Packet& packet);
         void SendToClient(int playerId, sf::Packet& packet);
+
+        void CheckPendingRespawns();
+        void RespawnPlayer(int playerId);
 
         std::string AssignColor();
         void FreeColor(const std::string& color);

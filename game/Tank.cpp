@@ -40,8 +40,12 @@ Tank::Tank(std::string colour)
 
 void Tank::Update(float dt, CollisionManager& collisionManager)
 {
+	// Check if player is Alive
+	if (!IsAlive())
+		return;
 
 	// Update rotation angle based on input.
+
 	if (isMoving.left)
 		bodyRotation -= sf::degrees(rotationSpeed * dt);
 	else if (isMoving.right)
@@ -71,6 +75,7 @@ void Tank::Update(float dt, CollisionManager& collisionManager)
 	barrel.setRotation(barrelRotation);
 
 	// Apply new position to tank body and barrel.
+
 	body.setPosition(position);
 	barrel.setPosition(position);
 
@@ -104,7 +109,7 @@ sf::FloatRect Tank::GetBounds() const
 
 void Tank::Shoot()
 {
-	if (ammo <= 0)
+	if (ammo <= 0 && !IsAlive())
 		return;
 	// Calculate bullet spawn position at the end of the barrel
 
@@ -189,41 +194,41 @@ void Tank::TakeDamage(int damage)
 
 	if (health == 0)
 	{
-		Utils::printMsg("Tank destroyed!", error);
+		Utils::printMsg("Tank destroyed", error);
 	}
 }
 
 
 void Tank::AddAmmo(int amount)
 {
-	if (ammo >= maxAmmo)
+	if (ammo >= MAX_AMMO)
 		return;
 
 	int oldAmmo = ammo;
 	ammo += amount;
 
-	if (ammo > maxAmmo)
-		ammo = maxAmmo;
+	if (ammo > MAX_AMMO)
+		ammo = MAX_AMMO;
 
 	int actualAmount = ammo - oldAmmo;
 	Utils::printMsg("Added " + std::to_string(actualAmount) + " ammo. Total: " +
-				   std::to_string(ammo) + "/" + std::to_string(maxAmmo), success);
+				   std::to_string(ammo) + "/" + std::to_string(MAX_AMMO), success);
 }
 
 void Tank::AddHealth(int amount)
 {
-	if (health >= maxHealth)
+	if (health >= MAX_HEALTH)
 		return;
 
 	int oldHealth = health;
 	health += amount;
 
-	if (health > maxHealth)
-		health = maxHealth;
+	if (health > MAX_HEALTH)
+		health = MAX_HEALTH;
 
 	int actualAmount = health - oldHealth;
 	Utils::printMsg("Healed " + std::to_string(actualAmount) + " HP. Total: " +
-				   std::to_string(health) + "/" + std::to_string(maxHealth), success);
+				   std::to_string(health) + "/" + std::to_string(MAX_HEALTH), success);
 }
 
 
@@ -239,12 +244,12 @@ int Tank::getAmmo()
 
 int Tank::getMaxHealth()
 {
-	return maxHealth;
+	return MAX_HEALTH;
 }
 
 int Tank::getMaxAmmo()
 {
-	return maxAmmo;
+	return MAX_AMMO;
 }
 
 void Tank::DecreaseAmmo(int amount)
@@ -253,4 +258,11 @@ void Tank::DecreaseAmmo(int amount)
 	{
 		ammo -= amount;
 	}
+}
+
+void Tank::Reset()
+{
+	health = MAX_HEALTH;
+	ammo = MAX_AMMO;
+	bullets.clear();
 }

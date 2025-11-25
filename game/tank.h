@@ -17,9 +17,7 @@ class Tank
 public:
     // Colour string will be used in path for image texture loading.
     // Will work with "red", "blue", "green" and "black".
-    //
-    // FIXME: this is not the cleanest solution as you can make a typo which will cause
-    // texture to fail to load. Ideally should use enum/map or similar solution.
+
     explicit Tank(std::string colour);
 
     void Update(float dt, CollisionManager& collisionManager);
@@ -67,6 +65,7 @@ public:
 
     bool IsAlive() const { return health > 0; }
 
+    void Reset();
     std::string GetColor() const { return colorString; }
 
     // Bullet management
@@ -75,7 +74,6 @@ public:
     void DecreaseAmmo(int amount);
 
 private:
-    // Temporary placeholder texture, make sue to replace before rendering the sprite.
     sf::Texture placeholder = sf::Texture(sf::Vector2u(1, 1));
 
     sf::Texture bodyTexture;
@@ -90,13 +88,13 @@ private:
     float rotationSpeed = 200.f;
     float barrelSpeed = 300.0f;
 
-    // Saving current colour here in case we need to send elsewhere.
+    // Saving current colour
     std::string colorString;
 
     float barrelLength = 30.f; // Distance from tank center to barrel tip
 
-    const int maxHealth = 100;
-    const int maxAmmo = 20;
+    const int MAX_HEALTH = 100;
+    const int MAX_AMMO = 20;
 
     int health = 100;
     int ammo = 20;

@@ -26,7 +26,7 @@ void RunClient() {
     std::optional<sf::IpAddress> serverIP = sf::IpAddress::getLocalAddress();
 
     if (!serverIP.has_value()) {
-        Utils::printMsg("Failed to get local IP address!", error);
+        Utils::printMsg("Failed to get local IP address", error);
         return;
     }
 
@@ -40,7 +40,7 @@ void RunClient() {
     // Connect to server
     Utils::printMsg("Connecting to " + serverIP.value().toString() + ":" + std::to_string(serverPort) + "...", info);
     if (!client.Connect()) {
-        Utils::printMsg("Failed to connect to server!", error);
+        Utils::printMsg("Failed to connect to server", error);
         return;
     }
 

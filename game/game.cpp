@@ -135,6 +135,7 @@ void Game::Update(float dt)
 	}
 
 	// Check bullet collisions against all tanks
+	/*
 	for (auto& [shooterId, shooterTank] : tanks) {
 		for (auto& bullet : shooterTank->bullets) {
 			if (!bullet->IsActive()) continue;
@@ -147,7 +148,7 @@ void Game::Update(float dt)
 				bullet->CheckTankCollision(targetTank.get());
 			}
 		}
-	}
+	} */
 
 	camera.setCenter(tanks[localId]->position);
 

@@ -54,6 +54,8 @@ bool bullet::CheckTankCollision(Tank* tank)
     if (!isActive || !tank || !tank->IsAlive())
         return false;
 
+    Utils::printMsg("We ballin", success);
+
     sf::FloatRect bulletBounds = GetBounds();
     sf::FloatRect tankBounds = tank->GetBounds();
 

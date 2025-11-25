@@ -14,7 +14,7 @@ client_main::client_main(sf::IpAddress serverIp, unsigned short serverPort)
 bool client_main::Connect()
 {
     JoinRequestMessage joinMsg;
-    joinMsg.playerName = "Player";
+    joinMsg.playerName = "Lil bro";
 
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::JOIN_REQUEST) << joinMsg;
@@ -178,6 +178,26 @@ void client_main::ReceiveMessages()
                 break;
             }
 
+            case MessageTypeProtocole::PLAYER_DIED:
+                    {
+                        PlayerDiedMessage msg;
+                        if (packet >> msg)
+                        {
+                            HandlePlayerDied(msg);
+                        }
+                        break;
+                    }
+
+            case MessageTypeProtocole::PLAYER_RESPAWNED:
+                    {
+                        PlayerRespawnedMessage msg;
+                        if (packet >> msg)
+                        {
+                            HandlePlayerRespawned(msg);
+                        }
+                        break;
+                    }
+
 
             default:
                 Utils::printMsg("Unknown message type: " + std::to_string(typeValue), warning);
@@ -195,7 +215,7 @@ void client_main::HandleJoinAccepted(JoinAcceptedMessage msg)
     game = std::make_unique<Game>(playerId);
     game->AddTank(playerId, playerColour);
 
-    Utils::printMsg("Connected! Player ID: " + std::to_string(playerId) +
+    Utils::printMsg("Connected Player ID: " + std::to_string(playerId) +
                    " Color: " + playerColour, success);
 }
 
@@ -328,5 +348,34 @@ void client_main::HandleObstacles(ObstacleSpawnedMessage msg)
         game->obstacles.push_back(std::move(obs));
 
 
+    }
+}
+
+void client_main::HandlePlayerDied(PlayerDiedMessage msg)
+{
+    if (!game)
+        return;
+
+    Utils::printMsg("Player " + std::to_string(msg.victimId) + " was killed by player " +
+                   std::to_string(msg.killerId), error);
+
+}
+
+void client_main::HandlePlayerRespawned(PlayerRespawnedMessage msg)
+{
+    if (!game)
+        return;
+
+    auto tank = game->tanks.find(msg.playerId);
+    if (tank != game->tanks.end())
+    {
+        // Update tank position to respawn location
+        tank->second->position = {msg.x, msg.y};
+
+        // Clear bullets for this tank
+        tank->second->bullets.clear();
+
+        Utils::printMsg("Player " + std::to_string(msg.playerId) + " respawned at (" +
+                       std::to_string(msg.x) + ", " + std::to_string(msg.y) + ")", success);
     }
 }

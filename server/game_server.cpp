@@ -185,10 +185,11 @@ void game_server::HandleDisconnect(int playerId) {
 
 void game_server::UpdateSnapShot(float dt) {
     collisionManager.ClearDynamicColliders();
-    // Update all bullets
-    UpdateBullets(dt);
     // Check bullet collisions
     CheckBulletCollisions();
+    // Update all bullets
+    UpdateBullets(dt);
+
 }
 
 void game_server::SpawnBullet(int ownerId) {
@@ -210,12 +211,13 @@ void game_server::SpawnBullet(int ownerId) {
     serverBullet.bulletId = nextBulletId++;
     serverBullet.ownerId = ownerId;
     serverBullet.bulletObj = std::make_unique<bullet>(barrelTip, tank->barrelRotation);
+    int bulletId = serverBullet.bulletId;
     bullets.push_back(std::move(serverBullet));
 
 
     // Broadcast bullet spawn
     BulletSpawnedMessage msg;
-    msg.bulletId = serverBullet.bulletId;
+    msg.bulletId = bulletId;
     msg.x = barrelTip.x;
     msg.y = barrelTip.y;
     msg.rotation = tank->barrelRotation.asDegrees();
@@ -252,7 +254,7 @@ void game_server::CheckBulletCollisions() {
             if (!tank->IsAlive()) continue;
 
             if (bulletIt->bulletObj->CheckTankCollision(tank.get())) {
-                // HIT!
+                // HIT
                 int damage = bulletIt->bulletObj->GetDamage();
                 tank->TakeDamage(damage);
 
@@ -269,10 +271,22 @@ void game_server::CheckBulletCollisions() {
 
                 Utils::printMsg("Player " + std::to_string(bulletIt->ownerId) +
                                " hit player " + std::to_string(tankId) +
-                               " for " + std::to_string(damage) + " damage", warning);
+                               " for " + std::to_string(damage) + " damage", success);
 
                 if (!tank->IsAlive()) {
-                    Utils::printMsg("Player " + std::to_string(tankId) + " died!", error);
+                    Utils::printMsg("Player " + std::to_string(tankId) + " is gone", error);
+
+                    PlayerDiedMessage dieMsg;
+                    dieMsg.victimId = tankId;
+                    dieMsg.killerId = bulletIt->ownerId;
+
+                    sf::Packet playerDeathPacket;
+
+                    playerDeathPacket << static_cast<uint8_t>(MessageTypeProtocole::PLAYER_DIED) << dieMsg;
+                    BroadcastMessage(playerDeathPacket);
+
+                    pendingRespawns.emplace_back(tankId, bulletIt->ownerId);
+
                 }
 
                 bulletDestroyed = true;
@@ -436,4 +450,44 @@ void game_server::SendObstaclesPosition(int playerId)
     SendToClient(playerId, packet);
 
     Utils::printMsg("Sent obstacle stuff to client", debug);
+}
+
+void game_server::CheckPendingRespawns()
+{
+    for (auto i = pendingRespawns.begin(); i != pendingRespawns.end(); ++i)
+    {
+        if (i->deathTimer.getElapsedTime().asSeconds() >= RESPAWN_TIME)
+        {
+            RespawnPlayer(i->victimId);
+            pendingRespawns.erase(i);
+        }
+    }
+}
+
+void game_server::RespawnPlayer(int playerId) {
+    auto tankIt = tanks.find(playerId);
+    if (tankIt == tanks.end()) {
+        Utils::printMsg("Tank with id:  " + std::to_string(playerId) + " - not found in the vector", error);
+        return;
+    }
+
+    Tank* tank = tankIt->second.get();
+    tank->Reset();
+
+    // Respawn at center
+    sf::Vector2f respawnPosition = {640.f, 480.f};
+    tank->position = respawnPosition;
+
+
+    Utils::printMsg("Bro with id: " + std::to_string(playerId) + " back in action", success);
+
+    // Send respawn notification to all clients
+    PlayerRespawnedMessage respawnMsg;
+    respawnMsg.playerId = playerId;
+    respawnMsg.x = respawnPosition.x;
+    respawnMsg.y = respawnPosition.y;
+
+    sf::Packet packet;
+    packet << static_cast<uint8_t>(MessageTypeProtocole::PLAYER_RESPAWNED) << respawnMsg;
+    BroadcastMessage(packet);
 }

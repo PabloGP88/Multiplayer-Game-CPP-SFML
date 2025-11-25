@@ -24,6 +24,7 @@ enum class MessageTypeProtocole : uint8_t {
     PLAYER_HIT = 9,
     PLAYER_DIED = 10,
     OBSTACLE_DATA = 11,
+    PLAYER_RESPAWNED = 12
 };
 
 // Client requests to join
@@ -200,6 +201,34 @@ struct PlayerHitMessage {
 
     friend sf::Packet& operator>>(sf::Packet& packet, PlayerHitMessage& msg) {
         return packet >> msg.victimId >> msg.shooterId >> msg.damage >> msg.newHealth;
+    }
+};
+
+// Server notifies player died
+struct PlayerDiedMessage {
+    int victimId;
+    int killerId;
+
+    friend sf::Packet& operator<<(sf::Packet& packet, const PlayerDiedMessage& msg) {
+        return packet << msg.victimId << msg.killerId;
+    }
+
+    friend sf::Packet& operator>>(sf::Packet& packet, PlayerDiedMessage& msg) {
+        return packet >> msg.victimId >> msg.killerId;
+    }
+};
+
+// Server notifies player respawned
+struct PlayerRespawnedMessage {
+    int playerId;
+    float x, y;
+
+    friend sf::Packet& operator<<(sf::Packet& packet, const PlayerRespawnedMessage& msg) {
+        return packet << msg.playerId << msg.x << msg.y;
+    }
+
+    friend sf::Packet& operator>>(sf::Packet& packet, PlayerRespawnedMessage& msg) {
+        return packet >> msg.playerId >> msg.x >> msg.y;
     }
 };
 
