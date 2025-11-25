@@ -44,7 +44,7 @@ void bullet::Update(float dt, CollisionManager& collisionManager)
 
     if (collisionManager.CheckCollision(bounds, pushback))
     {
-        Utils::printMsg("Bullet collided with obstacle, destroying bullet", success);
+        Utils::printMsg("Bullet collided with obstacle, destroying bullet. Detection locally in bullet.cpp", success);
         isActive = false;
     }
 }

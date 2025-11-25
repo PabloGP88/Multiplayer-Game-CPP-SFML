@@ -133,7 +133,7 @@ void Tank::UpdateBullets(float dt, CollisionManager& collisionManager)
 	for (auto i = bullets.begin(); i != bullets.end();)
 	{
 		(*i)->Update(dt, collisionManager);
-		Utils::printMsg("Bullet Updated");
+		Utils::printMsg("Bullet Updated in Local Tank", debug);
 
 		// Remove bullet if it's no longer active
 		if (!(*i)->IsActive())

@@ -80,7 +80,6 @@ void client_main::Update()
     SendPosition();
 }
 
-
 void client_main::SendPosition()
 {
     if (!isConnected || !game || playerId == -1)
@@ -154,16 +153,6 @@ void client_main::ReceiveMessages()
                 if (packet >> msg)
                 {
                     HandleBulletSpawned(msg);
-                }
-                break;
-            }
-
-            case MessageTypeProtocole::PLAYER_HIT:
-            {
-                PlayerHitMessage msg;
-                if (packet >> msg)
-                {
-                    HandlePlayerHit(msg);
                 }
                 break;
             }
@@ -283,28 +272,10 @@ void client_main::HandleBulletSpawned(BulletSpawnedMessage msg)
             std::make_unique<bullet>(bulletPos, bulletRotation, 400.f)
         );
 
-        Utils::printMsg("Bullet spawned by player " + std::to_string(msg.ownerId) +
-                       " at (" + std::to_string(msg.x) + ", " + std::to_string(msg.y) + ")",
-                       debug);
 
         tankIt->second->DecreaseAmmo(1); // Reduce owner's ammo
     }
 }
-
-void client_main::HandlePlayerHit(PlayerHitMessage msg)
-{
-    if (!game)
-        return;
-
-    auto tankIt = game->tanks.find(msg.victimId);
-    if (tankIt != game->tanks.end()) {
-        tankIt->second->TakeDamage(msg.damage);
-    }
-
-    Utils::printMsg("Player " + std::to_string(msg.victimId) + " was hit for " +
-                   std::to_string(msg.damage) + " damage", warning);
-}
-
 
 TankMessage client_main::TankPositionMessage()
 {
@@ -384,18 +355,3 @@ void client_main::HandlePlayerRespawned(PlayerRespawnedMessage msg)
     }
 }
 
-void client_main::HandleBulletDestroyed(BulletDestroyedMessage msg)
-{
-    Utils::printMsg("IT GOT TO BULLET DESTROY FUCK YEAH",debug);
-    if (!game)
-        return;
-
-    for (auto& [tankId, tank] : game->tanks)
-    {
-        for (auto it = tank->bullets.begin(); it != tank->bullets.end(); ++it)
-        {
-            //  TODO: Add a way to track bullet ids in the client
-            (*it)->Deactivate();
-        }
-    }
-}

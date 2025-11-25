@@ -39,8 +39,8 @@ void game_server::Update() {
         // Fixed timestep updates
         while (accumulator >= tickTime) {
             ProcessMessages();
-            UpdateSnapShot(tickTime);
             CheckClientTimeouts();
+            CheckPendingRespawns();
             accumulator -= tickTime;
         }
 
@@ -137,6 +137,7 @@ void game_server::HandleJoinRequest(sf::IpAddress sender, unsigned short port, J
 }
 
 void game_server::HandleTankUpdate(TankMessage msg) {
+
     auto tankIt = tanks.find(msg.playerId);
     if (tankIt == tanks.end()) return;
 
@@ -183,18 +184,6 @@ void game_server::HandleDisconnect(int playerId) {
     Utils::printMsg("Player " + std::to_string(playerId) + " disconnected", warning);
 }
 
-void game_server::UpdateSnapShot(float dt) {
-    collisionManager.ClearDynamicColliders();
-
-    // Update all bullets
-    UpdateBullets(dt);
-
-    // Check bullet collisions
-    //CheckBulletCollisions();
-
-    CheckPendingRespawns();
-}
-
 void game_server::SpawnBullet(int ownerId) {
     auto tankIt = tanks.find(ownerId);
     if (tankIt == tanks.end()) return;
@@ -234,80 +223,6 @@ void game_server::SpawnBullet(int ownerId) {
                    std::to_string(serverBullet.bulletId), debug);
 }
 
-void game_server::UpdateBullets(float dt) {
-    for (auto it = bullets.begin(); it != bullets.end();) {
-        it->bulletObj->Update(dt, collisionManager);
-
-        if (!it->bulletObj->IsActive()) {
-            Utils::printMsg("Bullet " + std::to_string(it->bulletId) + " destroyed (wall)", debug);
-            it = bullets.erase(it);
-        } else {
-            ++it;
-        }
-    }
-}
-
-void game_server::CheckBulletCollisions() {
-
-    for (auto bulletIt = bullets.begin(); bulletIt != bullets.end();) {
-        bool bulletDestroyed = false;
-
-        // Check against all tanks except the owner
-        for (auto& [tankId, tank] : tanks) {
-            if (tankId == bulletIt->ownerId)
-                continue;
-
-            if (!tank->IsAlive())
-                continue;
-
-
-            if (bulletIt->bulletObj->CheckTankCollision(tank.get())) {
-
-                Utils::printMsg("LOL");
-                // HIT
-                int damage = bulletIt->bulletObj->GetDamage();
-
-
-                // Send hit message
-                PlayerHitMessage hitMsg;
-                hitMsg.victimId = tankId;
-                hitMsg.shooterId = bulletIt->ownerId;
-                hitMsg.damage = damage;
-                hitMsg.newHealth = tank->getHealth();
-
-                Utils::printMsg( std::to_string(hitMsg.newHealth));
-                sf::Packet packet;
-                packet << static_cast<uint8_t>(MessageTypeProtocole::PLAYER_HIT) << hitMsg;
-                BroadcastMessage(packet);
-
-
-                if (!tank->IsAlive()) {
-                    Utils::printMsg("Player " + std::to_string(tankId) + " is gone", error);
-
-                    PlayerDiedMessage dieMsg;
-                    dieMsg.victimId = tankId;
-                    dieMsg.killerId = bulletIt->ownerId;
-
-                    sf::Packet playerDeathPacket;
-                    playerDeathPacket << static_cast<uint8_t>(MessageTypeProtocole::PLAYER_DIED) << dieMsg;
-                    BroadcastMessage(playerDeathPacket);
-
-                    pendingRespawns.emplace_back(tankId, bulletIt->ownerId);
-                }
-
-                bulletDestroyed = true;
-                break;
-            }
-        }
-
-        if (bulletDestroyed) {
-            bulletIt = bullets.erase(bulletIt);
-        } else {
-            ++bulletIt;
-        }
-    }
-}
-
 void game_server::SendGameSnapShot() {
     GameStateMessage state = BuildGameState();
 
@@ -321,6 +236,7 @@ GameStateMessage game_server::BuildGameState() {
     GameStateMessage state;
 
     // Add all players
+
     for (const auto& [id, tank] : tanks) {
         GameStateMessage::PlayerState p;
         p.playerId = id;
@@ -333,17 +249,6 @@ GameStateMessage game_server::BuildGameState() {
         p.isAlive = tank->IsAlive();
         p.color = tank->GetColor();
         state.players.push_back(p);
-    }
-
-    // Add all bullets
-    for (const auto& serverBullet : bullets) {
-        GameStateMessage::BulletState b;
-        b.bulletId = serverBullet.bulletId;
-        b.x = serverBullet.bulletObj->GetPosition().x;
-        b.y = serverBullet.bulletObj->GetPosition().y;
-        b.rotation = 0;  // Need to expose this from bullet class
-        b.ownerId = serverBullet.ownerId;
-        state.bullets.push_back(b);
     }
 
     return state;
