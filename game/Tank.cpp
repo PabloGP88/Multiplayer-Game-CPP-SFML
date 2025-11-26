@@ -264,5 +264,8 @@ void Tank::Reset()
 {
 	health = MAX_HEALTH;
 	ammo = MAX_AMMO;
+
+
+
 	bullets.clear();
 }

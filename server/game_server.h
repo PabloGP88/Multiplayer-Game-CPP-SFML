@@ -4,10 +4,12 @@
 
 #pragma once
 #include <SFML/Network.hpp>
-#include <SFML/System.hpp>
 #include <unordered_map>
 #include <memory>
+
+#include "../game/ammoBox.h"
 #include "../game/collision_manager.h"
+#include "../game/healthKit.h"
 #include "../game/obstacle.h"
 #include "../game/tank.h"
 #include "../game/protocole_message.h"
@@ -17,6 +19,7 @@ struct ConnectedClient {
     sf::IpAddress ipAddress;
     unsigned short port;
     int playerId;
+    bool isPendingRespawn;
 
     sf::Clock lastHeartbeat;  // For timeout detection
     bool prevShootState = false;  // Track previous shoot state for edge detection
@@ -46,7 +49,7 @@ struct RespawnClient
 class game_server
 {
     public:
-        game_server(unsigned short port);
+        explicit game_server(unsigned short port);
 
         void Update();  // Main server loop
 
@@ -73,7 +76,12 @@ class game_server
         const float CLIENT_TIMEOUT = 5.0f;  // 5 seconds timeout
         const float RESPAWN_TIME = 2.0f; // 2 seconds
 
+        // Obstacles
         std::vector<std::unique_ptr<obstacle>> obstacles;
+
+        // PickUps
+        std::vector<std::unique_ptr<ammoBox>> ammoBoxes;
+        std::vector<std::unique_ptr<healthKit>> healthKits;
 
         // Death and respawn tracking
         std::vector<RespawnClient> pendingRespawns;
@@ -81,7 +89,7 @@ class game_server
 
         // Methods
         void ProcessMessages();
-        void UpdateSnapShot(float dt);
+       // void UpdateSnapShot(float dt);
         void SendGameSnapShot();
         void CheckClientTimeouts();
 
@@ -91,10 +99,9 @@ class game_server
         void HandleDisconnect(int playerId);
 
         void SpawnBullet(int ownerId);
-        void UpdateBullets(float dt);
-        void CheckBulletCollisions();
 
         void CreateObstacles();
+        void CreatePowerUps();
 
         void BroadcastMessage(sf::Packet& packet);
         void SendToClient(int playerId, sf::Packet& packet);

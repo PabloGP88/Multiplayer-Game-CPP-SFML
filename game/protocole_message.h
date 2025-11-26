@@ -12,19 +12,20 @@ enum class MessageTypeProtocole : uint8_t {
     JOIN_REQUEST = 0,
     TANK_UPDATE = 1,
     DISCONNECT = 2,
+    PickUP_HIT = 3,
 
     // Server -> Client
-    JOIN_ACCEPTED = 3,
-    JOIN_REJECTED = 4,
-    GAME_STATE = 5,
-    PLAYER_JOINED = 6,
-    PLAYER_LEFT = 7,
-    BULLET_SPAWNED = 8,
-    PLAYER_HIT = 9,
-    PLAYER_DIED = 10,
-    OBSTACLE_DATA = 11,
-    PLAYER_RESPAWNED = 12,
-    //BULLET_DESTROYED = 13
+    JOIN_ACCEPTED = 4,
+    JOIN_REJECTED = 5,
+    GAME_STATE = 6,
+    PLAYER_JOINED = 7,
+    PLAYER_LEFT = 8,
+    BULLET_SPAWNED = 9,
+    PLAYER_HIT = 10,
+    PLAYER_DIED = 11,
+    OBSTACLE_DATA = 12,
+    PLAYER_RESPAWNED = 13,
+    PickUP_DATA = 14
 };
 
 // Client requests to join
@@ -42,7 +43,7 @@ struct JoinRequestMessage {
 
 // Server accepts join
 struct JoinAcceptedMessage {
-    int assignedPlayerId;
+    uint8_t assignedPlayerId;
     std::string tankColor;
 
     friend sf::Packet& operator<<(sf::Packet& packet, const JoinAcceptedMessage& msg) {
@@ -59,42 +60,43 @@ struct TankMessage {
     float x, y;
     float rotationBody;
     float rotationBarrel;
-    int playerId;
+    uint8_t playerId;
     bool shootPressed;
+    bool isAlive;
 
     friend sf::Packet& operator<<(sf::Packet& packet, const TankMessage& msg) {
         return packet << msg.playerId
                       << msg.x << msg.y
                       << msg.rotationBody << msg.rotationBarrel
-                      << msg.shootPressed;
+                      << msg.shootPressed << msg.isAlive;
     }
 
     friend sf::Packet& operator>>(sf::Packet& packet, TankMessage& msg) {
         return packet >> msg.playerId
                       >> msg.x >> msg.y
                       >> msg.rotationBody >> msg.rotationBarrel
-                      >> msg.shootPressed;
+                      >> msg.shootPressed >> msg.isAlive;
     }
 };
 
 // Complete game state from server
 struct GameStateMessage {
     struct PlayerState {
-        int playerId;
+        uint8_t playerId;
         float x, y;
         float rotationBody;
         float rotationBarrel;
-        int health;
-        int ammo;
+        uint8_t health;
+        uint8_t ammo;
         bool isAlive;
         std::string color;
     };
 
     struct BulletState {
-        int bulletId;
+        uint8_t bulletId;
         float x, y;
         float rotation;
-        int ownerId;
+        uint8_t ownerId;
     };
 
     std::vector<PlayerState> players;
@@ -147,7 +149,7 @@ struct GameStateMessage {
 
 // Server notifies new player joined
 struct PlayerJoinedMessage {
-    int playerId;
+    uint8_t playerId;
     std::string color;
 
     friend sf::Packet& operator<<(sf::Packet& packet, const PlayerJoinedMessage& msg) {
@@ -161,7 +163,7 @@ struct PlayerJoinedMessage {
 
 // Server notifies player left
 struct PlayerLeftMessage {
-    int playerId;
+    uint8_t playerId;
 
     friend sf::Packet& operator<<(sf::Packet& packet, const PlayerLeftMessage& msg) {
         return packet << msg.playerId;
@@ -174,10 +176,10 @@ struct PlayerLeftMessage {
 
 // Server notifies bullet spawned
 struct BulletSpawnedMessage {
-    int bulletId;
+    uint8_t bulletId;
     float x, y;
     float rotation;
-    int ownerId;
+    uint8_t ownerId;
 
     friend sf::Packet& operator<<(sf::Packet& packet, const BulletSpawnedMessage& msg) {
         return packet << msg.bulletId << msg.x << msg.y << msg.rotation << msg.ownerId;
@@ -188,39 +190,22 @@ struct BulletSpawnedMessage {
     }
 };
 
-// Server notifies player hit
-struct PlayerHitMessage {
-    int victimId;
-    int shooterId;
-    int damage;
-    int newHealth;
-
-    friend sf::Packet& operator<<(sf::Packet& packet, const PlayerHitMessage& msg) {
-        return packet << msg.victimId << msg.shooterId << msg.damage << msg.newHealth;
-    }
-
-    friend sf::Packet& operator>>(sf::Packet& packet, PlayerHitMessage& msg) {
-        return packet >> msg.victimId >> msg.shooterId >> msg.damage >> msg.newHealth;
-    }
-};
-
 // Server notifies player died
 struct PlayerDiedMessage {
-    int victimId;
-    int killerId;
+    uint8_t victimId;
 
     friend sf::Packet& operator<<(sf::Packet& packet, const PlayerDiedMessage& msg) {
-        return packet << msg.victimId << msg.killerId;
+        return packet << msg.victimId;
     }
 
     friend sf::Packet& operator>>(sf::Packet& packet, PlayerDiedMessage& msg) {
-        return packet >> msg.victimId >> msg.killerId;
+        return packet >> msg.victimId;
     }
 };
 
 // Server notifies player respawned
 struct PlayerRespawnedMessage {
-    int playerId;
+    uint8_t playerId;
     float x, y;
 
     friend sf::Packet& operator<<(sf::Packet& packet, const PlayerRespawnedMessage& msg) {
@@ -246,7 +231,7 @@ struct ObstacleSpawnedMessage
 
     friend sf::Packet& operator<<(sf::Packet& packet, const ObstacleSpawnedMessage& msg)
     {
-        packet << static_cast<uint32_t>(msg.obstacles.size());
+        packet << static_cast<uint8_t>(msg.obstacles.size());
         for (const auto& p : msg.obstacles)
         {
             packet << p.x << p.y << p.width << p.height << p.scaleX << p.scaleY << p.texture;
@@ -256,12 +241,12 @@ struct ObstacleSpawnedMessage
 
     friend sf::Packet& operator>>(sf::Packet& packet, ObstacleSpawnedMessage& msg)
     {
-        uint32_t count;
+        uint8_t count;
         packet >> count;
         msg.obstacles.clear();
         msg.obstacles.reserve(count);
 
-        for (uint32_t i = 0; i < count; i++) {
+        for (uint8_t i = 0; i < count; i++) {
             ObstacleSpawnedMessage::ObstacleData obs;
             packet >> obs.x >> obs.y >> obs.width >> obs.height
                    >> obs.scaleX >> obs.scaleY >> obs.texture;
@@ -272,8 +257,9 @@ struct ObstacleSpawnedMessage
     }
 };
 
-struct BulletDestroyedMessage {
-    int bulletId;
+struct BulletDestroyedMessage
+{
+    uint8_t bulletId;
 
     friend sf::Packet& operator<<(sf::Packet& packet, const BulletDestroyedMessage& msg) {
         return packet << msg.bulletId;
@@ -281,5 +267,43 @@ struct BulletDestroyedMessage {
 
     friend sf::Packet& operator>>(sf::Packet& packet, BulletDestroyedMessage& msg) {
         return packet >> msg.bulletId;
+    }
+};
+
+struct PickUpMessage
+{
+    struct PickUpData
+    {
+        uint8_t PickUpId;
+        float x, y;
+    };
+
+    std::vector<PickUpData> pickUps;
+
+    friend sf::Packet& operator<<(sf::Packet& packet, const PickUpMessage& msg)
+    {
+        packet <<  static_cast<uint8_t>(msg.pickUps.size());
+        for (const auto& p : msg.pickUps)
+        {
+            packet << p.PickUpId << p.x << p.y;
+        }
+
+        return packet;
+    }
+
+    friend sf::Packet& operator>>(sf::Packet& packet, PickUpMessage& msg)
+    {
+        uint8_t count;
+        packet >> count;
+        msg.pickUps.clear();
+        msg.pickUps.reserve(count);
+
+        for (uint8_t i = 0; i < count; i++) {
+            PickUpMessage::PickUpData p{};
+            packet >> p.PickUpId >> p.x >> p.y;
+            msg.pickUps.push_back(p);
+        }
+
+        return packet;
     }
 };

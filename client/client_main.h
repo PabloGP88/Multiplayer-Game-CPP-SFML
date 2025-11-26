@@ -28,7 +28,6 @@ class client_main
         void HandleObstacles(ObstacleSpawnedMessage msg);
         void HandlePlayerDied(PlayerDiedMessage msg);
         void HandlePlayerRespawned(PlayerRespawnedMessage msg);
-        void HandleBulletDestroyed(BulletDestroyedMessage msg);
         // Network Methods
         void ReceiveMessages();
         void HandleJoinAccepted(JoinAcceptedMessage msg);
@@ -36,7 +35,6 @@ class client_main
         void HandlePlayerJoined(PlayerJoinedMessage msg);
         void HandlePlayerLeft(PlayerLeftMessage msg);
         void HandleBulletSpawned(BulletSpawnedMessage msg);
-        void HandlePlayerHit(PlayerHitMessage msg);
 
         // Get Connection state and Player id
         bool IsConnected() const { return isConnected; }

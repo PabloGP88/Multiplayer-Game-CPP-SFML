@@ -148,9 +148,28 @@ void game_server::HandleTankUpdate(TankMessage msg) {
     tank->bodyRotation = sf::degrees(msg.rotationBody);
     tank->barrelRotation = sf::degrees(msg.rotationBarrel);
 
-    // Perform shooting just ones per press
+    // Check if player just died and isn't already pending respawn
     auto clientIt = clients.find(msg.playerId);
     if (clientIt != clients.end()) {
+        if (!msg.isAlive && !clientIt->second.isPendingRespawn) {
+            Utils::printMsg("Player " + std::to_string(msg.playerId) + " died", error);
+
+            // Mark as pending respawn to prevent duplicate entries
+            clientIt->second.isPendingRespawn = true;
+
+            // Broadcast death
+            PlayerDiedMessage diedMsg;
+            diedMsg.victimId = msg.playerId;
+
+            sf::Packet deathPacket;
+            deathPacket << static_cast<uint8_t>(MessageTypeProtocole::PLAYER_DIED) << diedMsg;
+            BroadcastMessage(deathPacket);
+
+            // Add to respawn queue, 2 second timer
+            pendingRespawns.emplace_back(msg.playerId, -1);
+        }
+
+        // Perform shooting just once per press
         bool prevState = clientIt->second.prevShootState;
         if (msg.shootPressed && !prevState && tank->getAmmo() > 0) {
             SpawnBullet(msg.playerId);
@@ -315,9 +334,28 @@ void game_server::CreateObstacles()
     std::uniform_real_distribution<float> posY(0.f, 700);
     std::uniform_int_distribution<int> sizeDist(minSize, maxSize);
 
+    sf::Vector2f spawnPoint(640.f, 480.f);
+    float minSpawnClearance = 100.f;
+
     for (int i = 0; i < numRocks; i++)
     {
-        sf::Vector2f pos = { posX(gen), posY(gen) };
+        sf::Vector2f pos;
+        bool validPosition = false;
+
+        // To ensure center is clear
+        while (!validPosition) {
+            pos = { posX(gen), posY(gen) };
+
+            float distToSpawn = std::sqrt(
+                std::pow(pos.x - spawnPoint.x, 2) +
+                std::pow(pos.y - spawnPoint.y, 2)
+            );
+
+            if (distToSpawn > minSpawnClearance) {
+                validPosition = true;
+            }
+        }
+
         int size = sizeDist(gen);
         sf::Vector2f scale(size, size);
 
@@ -326,10 +364,8 @@ void game_server::CreateObstacles()
 
         collisionManager.AddStaticCollider(rock->GetBounds());
 
-        std::uniform_int_distribution<int> brightness(200, 255); // Range for lightness
-
+        std::uniform_int_distribution<int> brightness(100, 255);
         sf::Color tint(brightness(gen), brightness(gen), brightness(gen));
-
         rock->sprite.setColor(tint);
 
         obstacles.push_back(std::move(rock));
@@ -386,12 +422,16 @@ void game_server::RespawnPlayer(int playerId) {
     }
 
     Tank* tank = tankIt->second.get();
-    tank->Reset();
 
     // Respawn at center
     sf::Vector2f respawnPosition = {640.f, 480.f};
     tank->position = respawnPosition;
 
+    auto clientIt = clients.find(playerId);
+    if (clientIt != clients.end()) {
+        clientIt->second.prevShootState = false;
+        clientIt->second.isPendingRespawn = false;
+    }
 
     Utils::printMsg("Bro with id: " + std::to_string(playerId) + " back in action", success);
 

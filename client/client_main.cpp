@@ -292,6 +292,8 @@ TankMessage client_main::TankPositionMessage()
 
     msg.shootPressed = game->tanks[playerId]->wantsToShoot;
 
+    msg.isAlive = game->tanks[playerId]->IsAlive();
+
     return msg;
 }
 
@@ -331,8 +333,6 @@ void client_main::HandlePlayerDied(PlayerDiedMessage msg)
     if (!game)
         return;
 
-    Utils::printMsg("Player " + std::to_string(msg.victimId) + " was killed by player " +
-                   std::to_string(msg.killerId), error);
 
 }
 
@@ -349,9 +349,8 @@ void client_main::HandlePlayerRespawned(PlayerRespawnedMessage msg)
 
         // Clear bullets for this tank
         tank->second->bullets.clear();
+        tank->second->Reset();
 
-        Utils::printMsg("Player " + std::to_string(msg.playerId) + " respawned at (" +
-                       std::to_string(msg.x) + ", " + std::to_string(msg.y) + ")", success);
     }
 }
 

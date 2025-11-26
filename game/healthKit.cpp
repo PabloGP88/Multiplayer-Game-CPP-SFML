@@ -8,7 +8,7 @@ healthKit::healthKit(sf::Vector2f position,
                      float worldWidth,
                      float worldHeight,
                      int healAmount)
-    : pickUp("Assets/FirstAid.png", position, worldWidth, worldHeight),
+    : pickUp("../Assets/FirstAid.png", position, worldWidth, worldHeight),
       healAmount(healAmount)
 {
     Utils::printMsg("HealthKit created with " + std::to_string(healAmount) + " heal amount", success);

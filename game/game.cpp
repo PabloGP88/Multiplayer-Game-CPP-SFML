@@ -218,7 +218,8 @@ TankMessage Game::GetNetworkUpdate(int id) {
 		tanks[id]->bodyRotation.asDegrees(),
 		tanks[id]->barrelRotation.asDegrees(),
 		id,
-		tanks[id]->wantsToShoot
+		tanks[id]->wantsToShoot,
+		tanks[id]->IsAlive()
 	};
 }
 
