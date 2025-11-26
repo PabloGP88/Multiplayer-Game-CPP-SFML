@@ -274,7 +274,8 @@ struct PickUpMessage
 {
     struct PickUpData
     {
-        uint8_t PickUpId;
+        uint8_t pickUpId;
+        uint8_t pickUpType;  // 0 = AmmoBox, 1 = HealthKit
         float x, y;
     };
 
@@ -285,7 +286,7 @@ struct PickUpMessage
         packet <<  static_cast<uint8_t>(msg.pickUps.size());
         for (const auto& p : msg.pickUps)
         {
-            packet << p.PickUpId << p.x << p.y;
+            packet << p.pickUpId << p.pickUpType << p.x << p.y;
         }
 
         return packet;
@@ -300,7 +301,7 @@ struct PickUpMessage
 
         for (uint8_t i = 0; i < count; i++) {
             PickUpMessage::PickUpData p{};
-            packet >> p.PickUpId >> p.x >> p.y;
+            packet >> p.pickUpId >> p.pickUpType >> p.x >> p.y;
             msg.pickUps.push_back(p);
         }
 

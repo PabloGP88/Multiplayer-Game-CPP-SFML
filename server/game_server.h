@@ -94,6 +94,7 @@ class game_server
         void CheckClientTimeouts();
 
         void SendObstaclesPosition(int playerId);
+        void SendPickUpsPosition(int playerId);
         void HandleJoinRequest(sf::IpAddress sender, unsigned short port, JoinRequestMessage msg);
         void HandleTankUpdate(TankMessage msg);
         void HandleDisconnect(int playerId);

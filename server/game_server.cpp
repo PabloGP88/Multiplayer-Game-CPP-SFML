@@ -331,7 +331,7 @@ void game_server::CreateObstacles()
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> posX(0.f, 800.f);
-    std::uniform_real_distribution<float> posY(0.f, 700);
+    std::uniform_real_distribution<float> posY(0.f, 600);
     std::uniform_int_distribution<int> sizeDist(minSize, maxSize);
 
     sf::Vector2f spawnPoint(640.f, 480.f);
@@ -370,6 +370,107 @@ void game_server::CreateObstacles()
 
         obstacles.push_back(std::move(rock));
     }
+}
+
+void game_server::CreatePowerUps()
+{
+    int numHealthKits = 2;
+    int numAmmoBoxes = 4;
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> posX(0.f, 800.f);
+    std::uniform_real_distribution<float> posY(0.f, 600.f);
+
+    float rockSpace = 32.0f;
+
+    // Create health kits
+    for (int i = 0; i < numHealthKits; i++)
+    {
+        sf::Vector2f pos;
+        bool validPosition = false;
+
+        while (!validPosition)
+        {
+            pos = { posX(gen), posY(gen) };
+            validPosition = true;
+
+            for (auto& obs : obstacles)
+            {
+                float distToSpawn = std::sqrt(
+                    std::pow(pos.x - obs->GetPosition().x, 2) +
+                    std::pow(pos.y - obs->GetPosition().y, 2)
+                );
+
+                if (distToSpawn < rockSpace) {
+                    validPosition = false;
+                    break;  // No need to check other obstacles
+                }
+            }
+        }
+
+
+        auto healthKit = std::make_unique<class healthKit>(pos);
+        healthKits.push_back(std::move(healthKit));
+    }
+
+    // Create ammo boxes with same logic
+    for (int i = 0; i < numAmmoBoxes; i++)
+    {
+        sf::Vector2f pos;
+        bool validPosition = false;
+
+        while (!validPosition)
+        {
+            pos = { posX(gen), posY(gen) };
+            validPosition = true;
+
+            for (auto& obs : obstacles)
+            {
+                float distToSpawn = std::sqrt(
+                    std::pow(pos.x - obs->GetPosition().x, 2) +
+                    std::pow(pos.y - obs->GetPosition().y, 2)
+                );
+
+                if (distToSpawn < rockSpace) {
+                    validPosition = false;
+                    break;
+                }
+            }
+        }
+
+        auto ammoBox = std::make_unique<class ammoBox>(pos);
+        ammoBoxes.push_back(std::move(ammoBox));
+    }
+}
+
+void game_server::SendPickUpsPosition(int playerId)
+{
+    PickUpMessage msg;
+
+    for (size_t i = 0; i < healthKits.size(); i++)
+    {
+        PickUpMessage::PickUpData data;
+        data.pickUpId = i;
+        data.pickUpType = 1; // HealthKit
+        data.x = healthKits[i]->GetPosition().x;
+        data.y = healthKits[i]->GetPosition().y;
+        msg.pickUps.push_back(data);
+    }
+
+    for (size_t i = 0; i < ammoBoxes.size(); i++)
+    {
+        PickUpMessage::PickUpData data;
+        data.pickUpId = healthKits.size() + i;
+        data.pickUpType = 0; // AmmoBox
+        data.x = ammoBoxes[i]->GetPosition().x;
+        data.y = ammoBoxes[i]->GetPosition().y;
+        msg.pickUps.push_back(data);
+    }
+
+    sf::Packet packet;
+    packet << static_cast<uint8_t>(MessageTypeProtocole::PickUP_DATA) << msg;
+    SendToClient(playerId, packet);
 }
 
 void game_server::SendObstaclesPosition(int playerId)
