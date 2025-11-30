@@ -20,8 +20,6 @@ obstacle::obstacle(const std::string& texturePath,
 
     if (texture.loadFromFile(texturePath))
     {
-        Utils::printMsg("Texture Loaded Successfully: " + texturePath, success);
-
         sprite.setTexture(texture);
         sprite.setTextureRect(sf::IntRect({0, 0}, static_cast<sf::Vector2i>(texture.getSize())));
 

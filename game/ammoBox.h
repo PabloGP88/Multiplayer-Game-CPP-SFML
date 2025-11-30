@@ -21,6 +21,11 @@ class ammoBox: public pickUp
         // Get the amount of ammo this box provides
         int GetAmmoAmount() const { return ammoAmount; }
 
+        void SetPosition(sf::Vector2f position)
+        {
+            sprite.setPosition(position);
+            this->position = position;
+        };
     private:
         int ammoAmount;
 

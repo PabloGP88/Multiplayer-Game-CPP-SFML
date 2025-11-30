@@ -22,13 +22,6 @@ Game::Game(int localPlayer)
 	background.setTexture(backgroundTexture);
 	background.setTextureRect(sf::IntRect({0, 0}, {1280, 960}));
 
-	// Create Obstacles --------------------------------------------
-
-	//CreateObstacles();
-
-	// Create PickUps --------------------------------------------
-
-	//CreatePickups();
 
 	// --------------------------------------
 
@@ -154,17 +147,25 @@ void Game::Update(float dt)
 
 	camera.setCenter(tanks[localId]->position);
 
-	//UpdatePickups(dt);
+	UpdatePickups(dt);
 
-	// for (auto& ammoBox : ammoBoxes)
-	// {
-	// 	tanks[localId]->CheckPickupCollision(ammoBox.get());
-	// }
-	//
-	// for (auto& healthKit : healthKits)
-	// {
-	// 	tanks[localId]->CheckPickupCollision(healthKit.get());
-	// }
+	for (auto& ammoBox : ammoBoxes)
+	{
+	 	if (tanks[localId]->CheckPickupCollision(ammoBox.get()))
+	 	{
+	 		// 0 is ammo box
+			OnPickupCollected(ammoBox->GetPickupId(), 0);
+	 	}
+	}
+
+	for (auto& healthKit : healthKits)
+	{
+		if (tanks[localId]->CheckPickupCollision(healthKit.get()))
+		{
+			// 1 is health kit
+			OnPickupCollected(healthKit->GetPickupId(), 1);
+		}
+	}
 
 	ui.Update(*tanks[localId]);
 
@@ -200,7 +201,7 @@ void Game::Render(sf::RenderWindow& window)
 		obstacle->Render(window, false);
 	}
 	//
-	// RenderPickups(window);
+	RenderPickups(window);
 
 	for (auto& [id, tank] : tanks) {
 		tank->Render(window);
@@ -217,7 +218,6 @@ TankMessage Game::GetNetworkUpdate(int id) {
 		tanks[id]->position.y,
 		tanks[id]->bodyRotation.asDegrees(),
 		tanks[id]->barrelRotation.asDegrees(),
-		id,
 		tanks[id]->wantsToShoot,
 		tanks[id]->IsAlive()
 	};
@@ -256,42 +256,38 @@ void Game::CreateObstacles()
 	}
 }
 
-void Game::CreatePickups()
+void Game::CreatePickups(PickUpMessage& msg)
 {
-	// Create ammo boxes
-	int numAmmoBoxes = 2;
+	ammoBoxes.clear();
+	healthKits.clear();
 
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_real_distribution<float> posX(100.f, WORLD_WIDTH - 100.f);
-	std::uniform_real_distribution<float> posY(100.f, WORLD_HEIGHT - 100.f);
-
-	for (int i = 0; i < numAmmoBoxes; i++)
+	for (auto& pickupData : msg.pickUps)
 	{
-		sf::Vector2f pos = { posX(gen), posY(gen) };
+		sf::Vector2f pos = {pickupData.x, pickupData.y};
+		if (pickupData.pickUpType == 0)
+		{
+			// Create Ammo Box
+			auto ammo = std::make_unique<class ammoBox>(
+				pos,
+				WORLD_WIDTH,
+				WORLD_HEIGHT
+			);
+			ammo->SetPickupId(pickupData.pickUpId);
+			ammoBoxes.push_back(std::move(ammo));
 
-		int ammoAmount = tanks[localId]->getMaxAmmo() / 4;
+		} else
+		{
+			// Create HealthKjt
 
-		auto ammoBox = std::make_unique<class ammoBox>(pos, WORLD_WIDTH, WORLD_HEIGHT, ammoAmount);
-		ammoBoxes.push_back(std::move(ammoBox));
+			auto health = std::make_unique<class healthKit>(
+				pos,
+				WORLD_WIDTH,
+				WORLD_HEIGHT
+			);
+			health->SetPickupId(pickupData.pickUpId);
+			healthKits.push_back(std::move(health));
+		}
 	}
-
-	// Create health kits
-	int numHealthKits = 2;
-
-	for (int i = 0; i < numHealthKits; i++)
-	{
-		sf::Vector2f pos = { posX(gen), posY(gen) };
-
-		// Health kits heal 25% of max health
-		int healAmount = tanks[localId]->getMaxHealth() / 4;
-
-		auto healthKit = std::make_unique<class healthKit>(pos, WORLD_WIDTH, WORLD_HEIGHT, healAmount);
-		healthKits.push_back(std::move(healthKit));
-	}
-
-	Utils::printMsg("Created " + std::to_string(numAmmoBoxes) + " ammo boxes and " +
-				   std::to_string(numHealthKits) + " health kits", success);
 }
 
 void Game::UpdatePickups(float dt)

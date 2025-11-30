@@ -51,7 +51,7 @@ public:
 
     bool wantsToShoot;
     // Pickup and damage system
-    void CheckPickupCollision(pickUp* pickup);
+    bool CheckPickupCollision(pickUp* pickup);
     void TakeDamage(int damage);
 
     void AddAmmo(int amount);

@@ -38,6 +38,9 @@ class pickUp
         bool IsActive() const { return isActive; }
 
         void SetActive(bool active) { isActive = active; }
+        void SetPickupId(uint8_t id) { pickUpdId = id; }
+        uint8_t GetPickupId() const { return pickUpdId; }
+
 
     protected:
         sf::Vector2f position;
@@ -53,10 +56,9 @@ class pickUp
         static std::random_device rd;
         static std::mt19937 gen;
 
+        uint8_t pickUpdId;
+
     private:
-
-        sf::Vector2f GenerateRandomPosition();
-
         // Border margin to keep pickups away from edges
         const float BORDER_MARGIN = 100.f;
 

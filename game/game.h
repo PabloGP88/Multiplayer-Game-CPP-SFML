@@ -25,6 +25,7 @@ public:
 
     void AddTank(int tankId, std::string tankColour);
 
+    void CreatePickups(PickUpMessage& msg);
     int localId;
     std::unordered_map<int, std::unique_ptr<Tank>> tanks;
 
@@ -38,6 +39,8 @@ public:
     std::vector<std::unique_ptr<ammoBox>> ammoBoxes;
     std::vector<std::unique_ptr<healthKit>> healthKits;
 
+    std::function<void(uint8_t pickupId, uint8_t pickupType)> OnPickupCollected;
+
 private:
 
     sf::View camera; // Camera for the game
@@ -47,7 +50,6 @@ private:
     sf::Texture backgroundTexture;
 
 
-    void CreatePickups();
     void UpdatePickups(float dt);
     void RenderPickups(sf::RenderWindow& window);
 

@@ -57,26 +57,9 @@ sf::FloatRect pickUp::GetBounds() const
 
 void pickUp::Respawn()
 {
-    position = GenerateRandomPosition();
-    sprite.setPosition(position);
-    isActive = true;
-
-    Utils::printMsg("Pickup respawned at: " +
-                    std::to_string(position.x) + ", " +
-                    std::to_string(position.y), success);
-}
-
-sf::Vector2f pickUp::GenerateRandomPosition()
-{
-    // Create distributions for x and y within valid boundaries
-    std::uniform_real_distribution<float> distX(
-        BORDER_MARGIN,
-        worldWidth - BORDER_MARGIN
-    );
-    std::uniform_real_distribution<float> distY(
-        BORDER_MARGIN,
-        worldHeight - BORDER_MARGIN
-    );
-
-    return sf::Vector2f(distX(gen), distY(gen));
+    // Set a far distance for local so it looks responsive
+    // later the server will actually sset the actual new position
+    sf::Vector2f pos = {9999.f,9999.f};
+    sprite.setPosition(pos);
+    isActive = false;
 }

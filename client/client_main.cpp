@@ -14,7 +14,11 @@ client_main::client_main(sf::IpAddress serverIp, unsigned short serverPort)
 bool client_main::Connect()
 {
     JoinRequestMessage joinMsg;
-    joinMsg.playerName = "Lil bro";
+
+    std::cout << "Enter player name: ";
+    std::getline(std::cin, joinMsg.playerName);
+
+    std::cout << "Player name set to: " << joinMsg.playerName << std::endl;
 
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::JOIN_REQUEST) << joinMsg;
@@ -50,6 +54,13 @@ bool client_main::Connect()
                         HandleJoinAccepted(acceptMsg);
                         return true;
                     }
+                } else if (type == MessageTypeProtocole::JOIN_REJECTED)
+                {
+                    JoinRejectedMessage rejectMsg;
+                    if (responsePacket >> rejectMsg) {
+                        Utils::printMsg(rejectMsg.message, error);
+                        return false;
+                    }
                 }
             }
         }
@@ -57,7 +68,7 @@ bool client_main::Connect()
         sf::sleep(sf::milliseconds(100));
     }
 
-    Utils::printMsg("Connection timeout", error);
+    Utils::printMsg("Could not connect to the server, check your connection mate...", error);
     return false;
 }
 
@@ -157,9 +168,9 @@ void client_main::ReceiveMessages()
                 break;
             }
 
-            case MessageTypeProtocole::OBSTACLE_DATA:
+            case MessageTypeProtocole::OBSTACLE_SEED:
             {
-                ObstacleSpawnedMessage msg;
+                ObstacleSeedMessage msg;
                 if (packet >> msg)
                 {
                     HandleObstacles(msg);
@@ -187,6 +198,25 @@ void client_main::ReceiveMessages()
                     break;
                 }
 
+            case MessageTypeProtocole::PickUP_DATA:
+                {
+                    PickUpMessage msg;
+                    if (packet >> msg)
+                    {
+                        HandlePickUpData(msg);
+                    }
+                    break;
+                }
+            case MessageTypeProtocole::PickUp_UPDATE:
+                {
+                    PickUpUpdatedMessage msg;
+                    if (packet >> msg)
+                    {
+                        HandlePickUpUpdated(msg);
+                    }
+                    break;
+                }
+
             default:
                 Utils::printMsg("Unknown message type: " + std::to_string(typeValue), warning);
                 break;
@@ -203,6 +233,9 @@ void client_main::HandleJoinAccepted(JoinAcceptedMessage msg)
     game = std::make_unique<Game>(playerId);
     game->AddTank(playerId, playerColour);
 
+    game->OnPickupCollected = [this](uint8_t pickupId, uint8_t pickupType) {
+        SendPickupHit(pickupId, pickupType);
+    };
     Utils::printMsg("Connected Player ID: " + std::to_string(playerId) +
                    " Color: " + playerColour, success);
 }
@@ -297,33 +330,58 @@ TankMessage client_main::TankPositionMessage()
     return msg;
 }
 
-void client_main::HandleObstacles(ObstacleSpawnedMessage msg)
+void client_main::HandleObstacles(ObstacleSeedMessage msg)
 {
     if (!game)
         return;
 
-    Utils::printMsg("Obs data received mate", info);
+    Utils::printMsg("Obs data received mate", debug);
 
-    for (const auto& obstacle: msg.obstacles)
+    int numRocks = 10;
+    int minSize = 3;
+    int maxSize = 6;
+
+    std::mt19937 gen(msg.seed);
+    std::uniform_real_distribution<float> posX(0.f, 800.f);
+    std::uniform_real_distribution<float> posY(0.f, 600);
+    std::uniform_int_distribution<int> sizeDist(minSize, maxSize);
+
+    sf::Vector2f spawnPoint(640.f, 480.f);
+    float minSpawnClearance = 100.f;
+
+    for (int i = 0; i < numRocks; i++)
     {
-        sf::Vector2f position(obstacle.x, obstacle.y);
-        sf::Vector2f scale(obstacle.scaleX, obstacle.scaleY);
+        sf::Vector2f pos;
+        bool validPosition = false;
 
-        Utils::printMsg(obstacle.texture, info);
+        while (!validPosition)
+        {
+            pos = {posX(gen),posY(gen)};
 
-        auto obs = std::make_unique<class obstacle>(
-            obstacle.texture,
-            position,
-            sf::Vector2f(obstacle.width, obstacle.height),
-            sf::Vector2f(0, 0),
-            scale
-        );
+            float dist = std::sqrt(
+                std::pow(pos.x - spawnPoint.x, 2) + std::pow(pos.y - spawnPoint.y, 2)
+                );
+
+            if (dist > minSpawnClearance)
+            {
+                validPosition = true;
+            }
+        }
+
+        int size = sizeDist(gen);
+        sf::Vector2f scale(size, size);
+
+        auto rock = std::make_unique<obstacle>(
+            "../Assets/Rock.png",
+            pos,
+            sf::Vector2f(0,0),
+            sf::Vector2f(0,0),
+            scale);
 
         // Add it to the collision manager
-        game->collisionManager.AddStaticCollider(obs->GetBounds());
+        game->collisionManager.AddStaticCollider(rock->GetBounds());
 
-        game->obstacles.push_back(std::move(obs));
-
+        game->obstacles.push_back(std::move(rock));
 
     }
 }
@@ -354,3 +412,69 @@ void client_main::HandlePlayerRespawned(PlayerRespawnedMessage msg)
     }
 }
 
+void client_main::HandlePickUpData(PickUpMessage& msg)
+{
+    if (!game)
+        return;
+
+    Utils::printMsg("PickUps stuff received mate",debug);
+
+    game->CreatePickups(msg);
+}
+
+void client_main::SendPickupHit(uint8_t pickupId, uint8_t pickupType)
+{
+    if (!isConnected)
+        return;
+
+
+    PickUpHitMessage hitMsg;
+    hitMsg.playerId = playerId;
+    hitMsg.pickUpId = pickupId;
+    hitMsg.pickUpType = pickupType;
+
+    sf::Packet packet;
+    packet << static_cast<uint8_t>(MessageTypeProtocole::PickUP_HIT) << hitMsg;
+
+    socket_.send(packet, serverIp, serverPort);
+}
+
+void client_main::HandlePickUpUpdated(PickUpUpdatedMessage& msg)
+{
+    if (!game)
+        return;
+
+    Utils::printMsg("GOT INFO FROM SERVER");
+
+    // Find the pickup by its stored ID
+    if (msg.pickUpType == 0)
+    {
+        // AmmoBox - search through ammoBoxes for matching ID
+        for (auto& ammoBox : game->ammoBoxes)
+        {
+            if (ammoBox->GetPickupId() == msg.pickUpId)
+            {
+                ammoBox->SetPosition({msg.x, msg.y});
+                ammoBox->SetActive(true);
+                Utils::printMsg("AmmoBox repositioned to: " + std::to_string(msg.x) +
+                               "," + std::to_string(msg.y), success);
+                break;
+            }
+        }
+    }
+    else if (msg.pickUpType == 1)
+    {
+        // HealthKit - search through healthKits for matching ID
+        for (auto& healthKit : game->healthKits)
+        {
+            if (healthKit->GetPickupId() == msg.pickUpId)
+            {
+                healthKit->SetPosition({msg.x, msg.y});
+                healthKit->SetActive(true);
+                Utils::printMsg("HealthKit repositioned to: " + std::to_string(msg.x) +
+                               "," + std::to_string(msg.y), success);
+                break;
+            }
+        }
+    }
+}

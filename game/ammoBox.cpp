@@ -16,7 +16,5 @@ ammoBox::ammoBox(sf::Vector2f position,
 
 bool ammoBox::OnPickup()
 {
-    // Return true to indicate this pickup should be consumed
-    Utils::printMsg("AmmoBox picked up! Providing " + std::to_string(ammoAmount) + " ammo", success);
     return true;
 }

@@ -25,10 +25,12 @@ class client_main
         // Input Logic
         void SendPosition();
 
-        void HandleObstacles(ObstacleSpawnedMessage msg);
+        void HandleObstacles(ObstacleSeedMessage msg);
         void HandlePlayerDied(PlayerDiedMessage msg);
         void HandlePlayerRespawned(PlayerRespawnedMessage msg);
-        // Network Methods
+        void HandlePickUpData(PickUpMessage& msg);
+        void HandlePickUpUpdated(PickUpUpdatedMessage& msg);
+
         void ReceiveMessages();
         void HandleJoinAccepted(JoinAcceptedMessage msg);
         void HandleGameSnapShot(GameStateMessage msg);
@@ -36,9 +38,13 @@ class client_main
         void HandlePlayerLeft(PlayerLeftMessage msg);
         void HandleBulletSpawned(BulletSpawnedMessage msg);
 
+
         // Get Connection state and Player id
         bool IsConnected() const { return isConnected; }
         int GetPlayerId() const { return playerId; }
+
+
+        void SendPickupHit(uint8_t pickupId, uint8_t pickupType);
 
         // Game state
         std::unique_ptr<Game> game;

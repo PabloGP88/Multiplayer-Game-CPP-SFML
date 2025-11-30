@@ -17,12 +17,17 @@ game_server::game_server(unsigned short port)
 
     socket.setBlocking(false);
 
-    CreateObstacles();
+    std::random_device rd;
+    SEED= rd();
+
+    CreatePickUps();
 
     Utils::printMsg("=== SERVER STARTED ===", success);
     Utils::printMsg("Port: " + std::to_string(port), info);
     Utils::printMsg("Tick Rate: " + std::to_string(TICK_RATE) + " Hz", info);
-    Utils::printMsg("Obstacles created: " + std::to_string(obstacles.size()), success);
+    Utils::printMsg("Health Kits created: " + std::to_string(healthKits.size()), success);
+    Utils::printMsg("Ammo Boxes created: " + std::to_string(ammoBoxes.size()), success);
+    Utils::printMsg("Seed for obstacles: " + std::to_string(SEED), success);
 }
 
 void game_server::Update() {
@@ -94,6 +99,18 @@ void game_server::ProcessMessages() {
                 break;
             }
 
+        case MessageTypeProtocole::PickUP_HIT:{
+
+                PickUpHitMessage msg;
+
+                if (packet >> msg)
+                {
+                    HandlePickUpsUpdate(msg);
+                }
+
+                break;
+            }
+
             default:
                 Utils::printMsg("Unknown message type: " + std::to_string(typeValue), warning);
                 break;
@@ -102,11 +119,28 @@ void game_server::ProcessMessages() {
 }
 
 void game_server::HandleJoinRequest(sf::IpAddress sender, unsigned short port, JoinRequestMessage msg) {
+
+    if (clients.size() >= availableColors.size())
+    {
+        // Server full
+        JoinRejectedMessage rejectMsg;
+
+        rejectMsg.message = "Server is full (4/4 players), try later mate...";
+
+        sf::Packet rejectPacket;
+        rejectPacket << static_cast<uint8_t>(MessageTypeProtocole::JOIN_REJECTED) << rejectMsg;
+        socket.send(rejectPacket, sender, port);
+
+        return;
+    }
+
     int playerId = nextPlayerId++;
+
     std::string color = AssignColor();
 
+
     // Create client info
-    clients.try_emplace(playerId, sender, port, playerId);
+    clients.try_emplace(playerId, sender, port, playerId, msg.playerName);
     clients.at(playerId).lastHeartbeat.restart();
 
     tanks[playerId] = std::make_unique<Tank>(color);
@@ -121,7 +155,8 @@ void game_server::HandleJoinRequest(sf::IpAddress sender, unsigned short port, J
     acceptPacket << static_cast<uint8_t>(MessageTypeProtocole::JOIN_ACCEPTED) << acceptMsg;
     socket.send(acceptPacket, sender, port);
 
-    SendObstaclesPosition(playerId);
+    SendObstacleSeed(playerId);
+    SendPickUpsPosition(playerId);
 
     // Notify all other clients about new player
     PlayerJoinedMessage joinMsg;
@@ -132,7 +167,7 @@ void game_server::HandleJoinRequest(sf::IpAddress sender, unsigned short port, J
     joinPacket << static_cast<uint8_t>(MessageTypeProtocole::PLAYER_JOINED) << joinMsg;
     BroadcastMessage(joinPacket);
 
-    Utils::printMsg("Player " + std::to_string(playerId) + " (" + color + ") joined from " +
+    Utils::printMsg("Player " + std::to_string(playerId) + " with name: " + msg.playerName + " (" + color + " tank) joined from " +
                    sender.toString() + ":" + std::to_string(port), success);
 }
 
@@ -322,57 +357,7 @@ void game_server::FreeColor(const std::string& color) {
     }
 }
 
-void game_server::CreateObstacles()
-{
-    int numRocks = 10;
-    int minSize = 3;
-    int maxSize = 6;
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> posX(0.f, 800.f);
-    std::uniform_real_distribution<float> posY(0.f, 600);
-    std::uniform_int_distribution<int> sizeDist(minSize, maxSize);
-
-    sf::Vector2f spawnPoint(640.f, 480.f);
-    float minSpawnClearance = 100.f;
-
-    for (int i = 0; i < numRocks; i++)
-    {
-        sf::Vector2f pos;
-        bool validPosition = false;
-
-        // To ensure center is clear
-        while (!validPosition) {
-            pos = { posX(gen), posY(gen) };
-
-            float distToSpawn = std::sqrt(
-                std::pow(pos.x - spawnPoint.x, 2) +
-                std::pow(pos.y - spawnPoint.y, 2)
-            );
-
-            if (distToSpawn > minSpawnClearance) {
-                validPosition = true;
-            }
-        }
-
-        int size = sizeDist(gen);
-        sf::Vector2f scale(size, size);
-
-        auto rock = std::make_unique<obstacle>("Assets/Rock.png", pos,
-                      sf::Vector2f(0,0), sf::Vector2f(0,0), scale);
-
-        collisionManager.AddStaticCollider(rock->GetBounds());
-
-        std::uniform_int_distribution<int> brightness(100, 255);
-        sf::Color tint(brightness(gen), brightness(gen), brightness(gen));
-        rock->sprite.setColor(tint);
-
-        obstacles.push_back(std::move(rock));
-    }
-}
-
-void game_server::CreatePowerUps()
+void game_server::CreatePickUps()
 {
     int numHealthKits = 2;
     int numAmmoBoxes = 4;
@@ -381,8 +366,6 @@ void game_server::CreatePowerUps()
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> posX(0.f, 800.f);
     std::uniform_real_distribution<float> posY(0.f, 600.f);
-
-    float rockSpace = 32.0f;
 
     // Create health kits
     for (int i = 0; i < numHealthKits; i++)
@@ -402,7 +385,7 @@ void game_server::CreatePowerUps()
                     std::pow(pos.y - obs->GetPosition().y, 2)
                 );
 
-                if (distToSpawn < rockSpace) {
+                if (distToSpawn < ROCK_SPACE) {
                     validPosition = false;
                     break;  // No need to check other obstacles
                 }
@@ -432,7 +415,7 @@ void game_server::CreatePowerUps()
                     std::pow(pos.y - obs->GetPosition().y, 2)
                 );
 
-                if (distToSpawn < rockSpace) {
+                if (distToSpawn < ROCK_SPACE) {
                     validPosition = false;
                     break;
                 }
@@ -450,11 +433,13 @@ void game_server::SendPickUpsPosition(int playerId)
 
     for (size_t i = 0; i < healthKits.size(); i++)
     {
+
         PickUpMessage::PickUpData data;
         data.pickUpId = i;
         data.pickUpType = 1; // HealthKit
         data.x = healthKits[i]->GetPosition().x;
         data.y = healthKits[i]->GetPosition().y;
+
         msg.pickUps.push_back(data);
     }
 
@@ -473,31 +458,17 @@ void game_server::SendPickUpsPosition(int playerId)
     SendToClient(playerId, packet);
 }
 
-void game_server::SendObstaclesPosition(int playerId)
+void game_server::SendObstacleSeed(int playerId)
 {
-    ObstacleSpawnedMessage obs;
-
-    for (const auto& obstacle: obstacles)
-    {
-        ObstacleSpawnedMessage::ObstacleData d;
-
-        d.x = obstacle->GetPosition().x;
-        d.y = obstacle->GetPosition().y;
-        d.width = obstacle->GetBounds().size.x;
-        d.height = obstacle->GetBounds().size.y;
-        d.scaleX = obstacle->GetScale().x;
-        d.scaleY = obstacle->GetScale().y;
-        d.texture = obstacle->GetTexturePath();
-
-        obs.obstacles.push_back(d);
-    }
+    ObstacleSeedMessage obs;
+    obs.seed = SEED;
 
     sf::Packet packet;
-    packet << static_cast<uint8_t>(MessageTypeProtocole::OBSTACLE_DATA) << obs;
+    packet << static_cast<uint8_t>(MessageTypeProtocole::OBSTACLE_SEED) << obs;
 
     SendToClient(playerId, packet);
 
-    Utils::printMsg("Sent obstacle stuff to client", debug);
+    Utils::printMsg("Sent seed to client", debug);
 }
 
 void game_server::CheckPendingRespawns()
@@ -546,3 +517,59 @@ void game_server::RespawnPlayer(int playerId) {
     packet << static_cast<uint8_t>(MessageTypeProtocole::PLAYER_RESPAWNED) << respawnMsg;
     BroadcastMessage(packet);
 }
+
+void game_server::HandlePickUpsUpdate(PickUpHitMessage msg)
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> posX(0.f, 800.f);
+    std::uniform_real_distribution<float> posY(0.f, 600.f);
+
+    Utils::printMsg("Moving pikcup to a new position", debug);
+
+    sf::Vector2f newPos;
+    bool validPosition = false;
+
+    while (!validPosition)
+    {
+        newPos = { posX(gen), posY(gen) };
+        validPosition = true;
+
+        for (auto& obs : obstacles)
+        {
+            float distToSpawn = std::sqrt(
+                std::pow(newPos.x - obs->GetPosition().x, 2) +
+                std::pow(newPos.y - obs->GetPosition().y, 2)
+            );
+
+            if (distToSpawn < ROCK_SPACE) {
+                validPosition = false;
+                break;
+            }
+        }
+    }
+
+    if (msg.pickUpType == 0)
+    {
+        // AmmoBox
+        size_t ammoBoxIndex = msg.pickUpId - healthKits.size();
+        ammoBoxes[ammoBoxIndex]->SetPosition(newPos);
+    }
+    else if (msg.pickUpType == 1)
+    {
+        // HealthKit
+        healthKits[msg.pickUpId]->SetPosition(newPos);
+    }
+
+    // Broadcast to all players
+    PickUpUpdatedMessage updateMsg;
+    updateMsg.pickUpId = msg.pickUpId;
+    updateMsg.pickUpType = msg.pickUpType;
+    updateMsg.x = newPos.x;
+    updateMsg.y = newPos.y;
+
+    sf::Packet packet;
+    packet << static_cast<uint8_t>(MessageTypeProtocole::PickUp_UPDATE) << updateMsg;
+    BroadcastMessage(packet);
+}
+

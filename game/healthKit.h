@@ -2,6 +2,9 @@
 // Created by Pablo Gonzalez Poblette on 05/11/25.
 //
 
+#pragma once
+
+
 #include "pickUp.h"
 
 class healthKit: public pickUp
@@ -16,6 +19,12 @@ class healthKit: public pickUp
 
         // Get the amount of health this kit provides
         int GetHealAmount() const { return healAmount; }
+
+        void SetPosition(sf::Vector2f position)
+            {
+                this->position = position;
+                sprite.setPosition(position);
+            };
 
     private:
         int healAmount;

@@ -21,11 +21,13 @@ struct ConnectedClient {
     int playerId;
     bool isPendingRespawn;
 
+    std::string playerName;
+
     sf::Clock lastHeartbeat;  // For timeout detection
     bool prevShootState = false;  // Track previous shoot state for edge detection
 
-    ConnectedClient(sf::IpAddress address, unsigned short port, int playerId)
-    : ipAddress(address), port(port), playerId(playerId), prevShootState(false) {}
+    ConnectedClient(sf::IpAddress address, unsigned short port, int playerId, std::string playerName)
+    : ipAddress(address), port(port), playerId(playerId), playerName(playerName),prevShootState(false) {}
 };
 
 struct ServerBullet {
@@ -83,6 +85,8 @@ class game_server
         std::vector<std::unique_ptr<ammoBox>> ammoBoxes;
         std::vector<std::unique_ptr<healthKit>> healthKits;
 
+        std::vector<std::unique_ptr<pickUp>> pickUps;
+
         // Death and respawn tracking
         std::vector<RespawnClient> pendingRespawns;
 
@@ -93,16 +97,16 @@ class game_server
         void SendGameSnapShot();
         void CheckClientTimeouts();
 
-        void SendObstaclesPosition(int playerId);
+        void SendObstacleSeed(int playerId);
         void SendPickUpsPosition(int playerId);
         void HandleJoinRequest(sf::IpAddress sender, unsigned short port, JoinRequestMessage msg);
         void HandleTankUpdate(TankMessage msg);
+        void HandlePickUpsUpdate(PickUpHitMessage msg);
         void HandleDisconnect(int playerId);
 
         void SpawnBullet(int ownerId);
 
-        void CreateObstacles();
-        void CreatePowerUps();
+        void CreatePickUps();
 
         void BroadcastMessage(sf::Packet& packet);
         void SendToClient(int playerId, sf::Packet& packet);
@@ -112,6 +116,10 @@ class game_server
 
         std::string AssignColor();
         void FreeColor(const std::string& color);
+
+        const float ROCK_SPACE = 64.0;
+
+        uint16_t SEED;
 
         GameStateMessage BuildGameState();
 };

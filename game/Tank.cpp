@@ -95,10 +95,9 @@ void Tank::Update(float dt, CollisionManager& collisionManager)
 		body.setPosition(position);
 		barrel.setPosition(position);
 
-		Utils::printMsg("Collision detected! Pushback: " + std::to_string(pushback.x) + ", " + std::to_string(pushback.y), debug);
+		Utils::printMsg("Collision detected Pushback: " + std::to_string(pushback.x) + ", " + std::to_string(pushback.y), debug);
 
 	}
-
 
 }
 
@@ -133,7 +132,6 @@ void Tank::UpdateBullets(float dt, CollisionManager& collisionManager)
 	for (auto i = bullets.begin(); i != bullets.end();)
 	{
 		(*i)->Update(dt, collisionManager);
-		Utils::printMsg("Bullet Updated in Local Tank", debug);
 
 		// Remove bullet if it's no longer active
 		if (!(*i)->IsActive())
@@ -160,10 +158,10 @@ void Tank::RenderBullets(sf::RenderWindow& window)
 	}
 }
 
-void Tank::CheckPickupCollision(pickUp* pickup)
+bool Tank::CheckPickupCollision(pickUp* pickup)
 {
 	if (!pickup || !pickup->IsActive())
-		return;
+		return false;
 
 	if (pickup->CheckCollision(GetBounds()))
 	{
@@ -173,14 +171,20 @@ void Tank::CheckPickupCollision(pickUp* pickup)
 			AddAmmo(ammoBox->GetAmmoAmount());
 			ammoBox->OnPickup();
 			ammoBox->Respawn();
+
+			return true;
 		}
 		else if (auto* healthKit = dynamic_cast<::healthKit*>(pickup))
 		{
 			AddHealth(healthKit->GetHealAmount());
 			healthKit->OnPickup();
 			healthKit->Respawn();
+
+			return true;
 		}
 	}
+
+	return false;
 }
 
 void Tank::TakeDamage(int damage)
@@ -194,7 +198,9 @@ void Tank::TakeDamage(int damage)
 
 	if (health == 0)
 	{
-		Utils::printMsg("Tank destroyed", error);
+		Utils::printMsg("Tank DED", error);
+		body.setColor(sf::Color(255, 0, 0));
+		barrel.setColor(sf::Color(255, 0, 0));
 	}
 }
 
@@ -209,10 +215,6 @@ void Tank::AddAmmo(int amount)
 
 	if (ammo > MAX_AMMO)
 		ammo = MAX_AMMO;
-
-	int actualAmount = ammo - oldAmmo;
-	Utils::printMsg("Added " + std::to_string(actualAmount) + " ammo. Total: " +
-				   std::to_string(ammo) + "/" + std::to_string(MAX_AMMO), success);
 }
 
 void Tank::AddHealth(int amount)
@@ -225,10 +227,6 @@ void Tank::AddHealth(int amount)
 
 	if (health > MAX_HEALTH)
 		health = MAX_HEALTH;
-
-	int actualAmount = health - oldHealth;
-	Utils::printMsg("Healed " + std::to_string(actualAmount) + " HP. Total: " +
-				   std::to_string(health) + "/" + std::to_string(MAX_HEALTH), success);
 }
 
 
@@ -265,7 +263,8 @@ void Tank::Reset()
 	health = MAX_HEALTH;
 	ammo = MAX_AMMO;
 
-
+	body.setColor(sf::Color(255, 255, 255));
+	barrel.setColor(sf::Color(255, 255, 255));
 
 	bullets.clear();
 }

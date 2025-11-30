@@ -23,9 +23,10 @@ enum class MessageTypeProtocole : uint8_t {
     BULLET_SPAWNED = 9,
     PLAYER_HIT = 10,
     PLAYER_DIED = 11,
-    OBSTACLE_DATA = 12,
+    OBSTACLE_SEED = 12,
     PLAYER_RESPAWNED = 13,
-    PickUP_DATA = 14
+    PickUP_DATA = 14,
+    PickUp_UPDATE = 15
 };
 
 // Client requests to join
@@ -52,6 +53,19 @@ struct JoinAcceptedMessage {
 
     friend sf::Packet& operator>>(sf::Packet& packet, JoinAcceptedMessage& msg) {
         return packet >> msg.assignedPlayerId >> msg.tankColor;
+    }
+};
+
+// Server rejects
+struct JoinRejectedMessage {
+    std::string message;
+
+    friend sf::Packet& operator<<(sf::Packet& packet, const JoinRejectedMessage& msg) {
+        return packet << msg.message;
+    }
+
+    friend sf::Packet& operator>>(sf::Packet& packet, JoinRejectedMessage& msg) {
+        return packet >> msg.message;
     }
 };
 
@@ -217,43 +231,17 @@ struct PlayerRespawnedMessage {
     }
 };
 
-struct ObstacleSpawnedMessage
+struct ObstacleSeedMessage
 {
-    struct ObstacleData
+    uint16_t seed;
+    friend sf::Packet& operator<<(sf::Packet& packet, const ObstacleSeedMessage& msg)
     {
-        std::string texture;
-        float x, y;
-        float width, height;
-        float scaleX, scaleY;
-    };
-
-    std::vector<ObstacleData> obstacles;
-
-    friend sf::Packet& operator<<(sf::Packet& packet, const ObstacleSpawnedMessage& msg)
-    {
-        packet << static_cast<uint8_t>(msg.obstacles.size());
-        for (const auto& p : msg.obstacles)
-        {
-            packet << p.x << p.y << p.width << p.height << p.scaleX << p.scaleY << p.texture;
-        }
-        return packet;
+        return packet << msg.seed;
     }
 
-    friend sf::Packet& operator>>(sf::Packet& packet, ObstacleSpawnedMessage& msg)
+    friend sf::Packet& operator>>(sf::Packet& packet, ObstacleSeedMessage& msg)
     {
-        uint8_t count;
-        packet >> count;
-        msg.obstacles.clear();
-        msg.obstacles.reserve(count);
-
-        for (uint8_t i = 0; i < count; i++) {
-            ObstacleSpawnedMessage::ObstacleData obs;
-            packet >> obs.x >> obs.y >> obs.width >> obs.height
-                   >> obs.scaleX >> obs.scaleY >> obs.texture;
-
-            msg.obstacles.push_back(obs);
-        }
-        return packet;
+        return packet >> msg.seed;
     }
 };
 
@@ -306,5 +294,40 @@ struct PickUpMessage
         }
 
         return packet;
+    }
+};
+
+struct PickUpHitMessage
+{
+    uint8_t playerId;
+    uint8_t pickUpId;
+    uint8_t pickUpType;
+
+    PickUpMessage pickUpMessage;
+
+    friend sf::Packet& operator<<(sf::Packet& packet, const PickUpHitMessage& msg)
+    {
+        return packet << msg.playerId << msg.pickUpId << msg.pickUpType;
+    }
+
+    friend sf::Packet& operator>>(sf::Packet& packet, PickUpHitMessage& msg) {
+        return packet >> msg.playerId >> msg.pickUpId >> msg.pickUpType;
+    }
+};
+
+struct PickUpUpdatedMessage
+{
+    uint8_t pickUpId;
+    uint8_t pickUpType;
+    float x, y;
+
+    friend sf::Packet& operator<<(sf::Packet& packet, const PickUpUpdatedMessage& msg)
+    {
+        return packet << msg.pickUpId << msg.pickUpType << msg.x << msg.y;
+    }
+
+    friend sf::Packet& operator>>(sf::Packet& packet, PickUpUpdatedMessage& msg)
+    {
+        return packet >> msg.pickUpId >> msg.pickUpType >> msg.x >> msg.y;
     }
 };

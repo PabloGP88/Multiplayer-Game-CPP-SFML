@@ -16,7 +16,5 @@ healthKit::healthKit(sf::Vector2f position,
 
 bool healthKit::OnPickup()
 {
-    // Return true to indicate this pickup should be consumed
-    Utils::printMsg("HealthKit picked up! Providing " + std::to_string(healAmount) + " health", success);
     return true;
 }
