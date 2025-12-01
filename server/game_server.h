@@ -57,8 +57,13 @@ class game_server
 
     private:
         // Networking
-        sf::UdpSocket socket;
-        std::unordered_map<int, ConnectedClient> clients;
+
+        sf::TcpListener listenerTCP;
+        sf::SocketSelector selectorTCP;
+        std::vector<sf::TcpSocket*> clientsTCP;
+
+        sf::UdpSocket socketUDP;
+        std::unordered_map<int, ConnectedClient> clientsUDP;
 
         // Game state
         std::unordered_map<int, std::unique_ptr<Tank>> tanks;

@@ -8,7 +8,7 @@
 client_main::client_main(sf::IpAddress serverIp, unsigned short serverPort)
     : serverIp(serverIp), serverPort(serverPort), isConnected(false), playerId(-1)
 {
-    socket_.setBlocking(false);
+    socketUDP.setBlocking(false);
 }
 
 bool client_main::Connect()
@@ -23,7 +23,7 @@ bool client_main::Connect()
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::JOIN_REQUEST) << joinMsg;
 
-    if (socket_.send(packet, serverIp, serverPort) != sf::Socket::Status::Done)
+    if (socketUDP.send(packet, serverIp, serverPort) != sf::Socket::Status::Done)
     {
         Utils::printMsg("Failed to send join request", error);
         return false;
@@ -39,7 +39,7 @@ bool client_main::Connect()
         std::optional<sf::IpAddress> sender;
         unsigned short port;
 
-        if (socket_.receive(responsePacket, sender, port) == sf::Socket::Status::Done)
+        if (socketUDP.receive(responsePacket, sender, port) == sf::Socket::Status::Done)
         {
             uint8_t typeValue;
             if (responsePacket >> typeValue)
@@ -79,7 +79,7 @@ void client_main::Disconnect()
 
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::DISCONNECT) << playerId;
-    socket_.send(packet, serverIp, serverPort);
+    socketUDP.send(packet, serverIp, serverPort);
 
     isConnected = false;
     Utils::printMsg("Disconnected from server", warning);
@@ -106,7 +106,7 @@ void client_main::SendPosition()
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::TANK_UPDATE) << msg;
 
-    socket_.send(packet, serverIp, serverPort);
+    socketUDP.send(packet, serverIp, serverPort);
 }
 
 void client_main::ReceiveMessages()
@@ -118,7 +118,7 @@ void client_main::ReceiveMessages()
     std::optional<sf::IpAddress> sender;
     unsigned short port;
 
-    while (socket_.receive(packet, sender, port) == sf::Socket::Status::Done)
+    while (socketUDP.receive(packet, sender, port) == sf::Socket::Status::Done)
     {
         uint8_t typeValue;
         if (!(packet >> typeValue))
@@ -238,6 +238,17 @@ void client_main::HandleJoinAccepted(JoinAcceptedMessage msg)
     };
     Utils::printMsg("Connected Player ID: " + std::to_string(playerId) +
                    " Color: " + playerColour, success);
+
+    unsigned short portUDP = socketUDP.getLocalPort();
+
+    ClientUDPSocketInfo socketInfo;
+    socketInfo.portUDP = portUDP;
+
+    sf::Packet packet;
+
+    packet << static_cast<uint8_t>(MessageTypeProtocole::CLIENT_UDP_SOCKET) << socketInfo;
+
+    socketUDP.send(packet, serverIp, serverPort);
 }
 
 void client_main::HandleGameSnapShot(GameStateMessage msg)
@@ -436,7 +447,7 @@ void client_main::SendPickupHit(uint8_t pickupId, uint8_t pickupType)
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::PickUP_HIT) << hitMsg;
 
-    socket_.send(packet, serverIp, serverPort);
+    socketUDP.send(packet, serverIp, serverPort);
 }
 
 void client_main::HandlePickUpUpdated(PickUpUpdatedMessage& msg)

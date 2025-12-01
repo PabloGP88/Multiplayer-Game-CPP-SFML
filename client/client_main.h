@@ -6,6 +6,7 @@
 #include <SFML/Network/IpAddress.hpp>
 #include <SFML/Window/Window.hpp>
 #include <memory>
+#include <SFML/Network/TcpSocket.hpp>
 #include <SFML/Network/UdpSocket.hpp>
 
 #include "../game/protocole_message.h"
@@ -51,7 +52,8 @@ class client_main
 
     private:
         // Network
-        sf::UdpSocket socket_;
+        sf::UdpSocket socketUDP;
+        sf::TcpSocket socketTCP;
         sf::IpAddress serverIp;
         unsigned short serverPort;
         bool isConnected;
