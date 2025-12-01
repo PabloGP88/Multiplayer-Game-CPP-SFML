@@ -11,10 +11,18 @@ game_server::game_server(unsigned short port)
     : collisionManager(1280.f, 960.f)
 {
     if (socket.bind(port) != sf::Socket::Status::Done) {
-        Utils::printMsg("Failed to bind server to port " + std::to_string(port), error);
+        Utils::printMsg("Failed to bind server to udp port " + std::to_string(port), error);
         throw std::runtime_error("Server bind failed");
     }
 
+    if (tcpListener.listen(port) != sf::Socket::Status::Done)
+    {
+        Utils::printMsg("Failed to listen on tcp port " + std::to_string(port), error);
+        throw std::runtime_error("Server bind failed");
+    }
+
+    selector.add(tcpListener);
+    tcpListener.setBlocking(false);
     socket.setBlocking(false);
 
     std::random_device rd;
@@ -23,7 +31,7 @@ game_server::game_server(unsigned short port)
     CreatePickUps();
 
     Utils::printMsg("=== SERVER STARTED ===", success);
-    Utils::printMsg("Port: " + std::to_string(port), info);
+    Utils::printMsg("Port UDP: " + std::to_string(port), info);
     Utils::printMsg("Tick Rate: " + std::to_string(TICK_RATE) + " Hz", info);
     Utils::printMsg("Health Kits created: " + std::to_string(healthKits.size()), success);
     Utils::printMsg("Ammo Boxes created: " + std::to_string(ammoBoxes.size()), success);
@@ -43,13 +51,14 @@ void game_server::Update() {
 
         // Fixed timestep updates
         while (accumulator >= tickTime) {
-            ProcessMessages();
+            ProcessMessagesUDP();
+            ProcessMessagesTCP();
             CheckClientTimeouts();
             CheckPendingRespawns();
             accumulator -= tickTime;
         }
 
-        // Send game state to all clients
+        // Send game state to all clientsUDP
         SendGameSnapShot();
 
         // Sleep to prevent CPU hogging
@@ -57,7 +66,7 @@ void game_server::Update() {
     }
 }
 
-void game_server::ProcessMessages() {
+void game_server::ProcessMessagesUDP() {
     sf::Packet packet;
     std::optional<sf::IpAddress> senderIP;
     unsigned short senderPort;
@@ -81,8 +90,8 @@ void game_server::ProcessMessages() {
                 TankMessage msg;
                 if (packet >> msg) {
                     // Update heartbeat
-                    auto it = clients.find(msg.playerId);
-                    if (it != clients.end()) {
+                    auto it = clientsUDP.find(msg.playerId);
+                    if (it != clientsUDP.end()) {
                         it->second.lastHeartbeat.restart();
                     }
                     HandleTankUpdate(msg);
@@ -118,9 +127,117 @@ void game_server::ProcessMessages() {
     }
 }
 
+void game_server::ProcessMessagesTCP() {
+
+    sf::TcpSocket client;
+    std::optional<sf::IpAddress> senderIP;
+
+    unsigned short senderPort;
+
+    if (selector.wait())
+    {
+        // Read new connections
+        if (selector.isReady(tcpListener))
+        {
+            auto client = std::make_unique<sf::TcpSocket>();
+            if (tcpListener.accept(*client) == sf::Socket::Status::Done)
+            {
+                // Add new client to tcp vector
+                Utils::printMsg("Client connected BROOOOOO", success);
+                client->setBlocking(false);
+                selector.add(*client);
+                clientsTCP.push_back(std::move(client));
+            }
+        }
+
+        for (auto& client : clientsTCP)
+        {
+            if (selector.isReady(*client))
+            {
+                sf::Packet packet;
+                auto msg = client->receive(packet);
+
+                if (msg == sf::Socket::Status::Done)
+                {
+                    uint8_t typeValue;
+                    if (!(packet >> typeValue)) continue;
+
+                    MessageTypeProtocole type = static_cast<MessageTypeProtocole>(typeValue);
+
+                    switch (type)
+                    {
+                        case MessageTypeProtocole::JOIN_REQUEST:
+                            {
+                                JoinRequestMessage joinRequest;
+                                if (packet >> joinRequest)
+                                {
+                                    HandleJoinRequestTCP(*client, client->getRemoteAddress().value(),
+                                        client->getRemotePort(),
+                                        joinRequest);
+                                }
+                            }
+                    }
+                } else if (msg == sf::Socket::Status::Disconnected) {
+                    // remove client from vector
+                    selector.remove(*client);
+                }
+            }
+        }
+
+    }
+}
+
+void game_server::HandleJoinRequestTCP(sf::TcpSocket& socket,sf::IpAddress senderIP, unsigned short senderPort, JoinRequestMessage msg)
+{
+    if (clientsTCP.size() >= availableColors.size())
+    {
+        // Server full reject
+        return;
+    }
+
+    int playerId = nextPlayerId++;
+
+    std::string color = AssignColor();
+    std::string playerName = msg.playerName;
+
+    clientsUDP.try_emplace(playerId, senderIP, senderPort, playerId, playerName);
+    clientsUDP.at(playerId).lastHeartbeat.restart();
+
+    tanks[playerId] = std::make_unique<Tank>(color);
+    tanks[playerId]->position = {640, 480};
+
+    // Send acceptance to joining client
+    JoinAcceptedMessage acceptMsg;
+    acceptMsg.assignedPlayerId = playerId;
+    acceptMsg.tankColor = color;
+
+    sf::Packet acceptPacket;
+    acceptPacket << static_cast<uint8_t>(MessageTypeProtocole::JOIN_ACCEPTED) << acceptMsg;
+
+    if (socket.send(acceptPacket) != sf::Socket::Status::Done)
+    {
+        Utils::printMsg("Error sending accepted message", warning);
+    }
+
+    SendObstacleSeed(socket, playerId);
+    SendPickUpsPosition(socket,playerId);
+
+    // Notify all other clientsUDP about new player
+    PlayerJoinedMessage joinMsg;
+    joinMsg.playerId = playerId;
+    joinMsg.color = color;
+
+    sf::Packet joinPacket;
+    joinPacket << static_cast<uint8_t>(MessageTypeProtocole::PLAYER_JOINED) << joinMsg;
+    BroadcastMessage(joinPacket);
+
+    Utils::printMsg("Player " + std::to_string(playerId) + " with name: " + msg.playerName + " (" + color + " tank) joined from " +
+                   senderIP.toString() + ":" + std::to_string(senderPort), success);
+}
+
 void game_server::HandleJoinRequest(sf::IpAddress sender, unsigned short port, JoinRequestMessage msg) {
 
-    if (clients.size() >= availableColors.size())
+    if (clientsUDP.size() >= availableColors.size())
     {
         // Server full
         JoinRejectedMessage rejectMsg;
@@ -140,8 +257,8 @@ void game_server::HandleJoinRequest(sf::IpAddress sender, unsigned short port, J
 
 
     // Create client info
-    clients.try_emplace(playerId, sender, port, playerId, msg.playerName);
-    clients.at(playerId).lastHeartbeat.restart();
+    clientsUDP.try_emplace(playerId, sender, port, playerId, msg.playerName);
+    clientsUDP.at(playerId).lastHeartbeat.restart();
 
     tanks[playerId] = std::make_unique<Tank>(color);
     tanks[playerId]->position = {640, 480};
@@ -155,10 +272,10 @@ void game_server::HandleJoinRequest(sf::IpAddress sender, unsigned short port, J
     acceptPacket << static_cast<uint8_t>(MessageTypeProtocole::JOIN_ACCEPTED) << acceptMsg;
     socket.send(acceptPacket, sender, port);
 
-    SendObstacleSeed(playerId);
-    SendPickUpsPosition(playerId);
+    //SendObstacleSeed(playerId);
+    //SendPickUpsPosition(playerId);
 
-    // Notify all other clients about new player
+    // Notify all other clientsUDP about new player
     PlayerJoinedMessage joinMsg;
     joinMsg.playerId = playerId;
     joinMsg.color = color;
@@ -184,8 +301,8 @@ void game_server::HandleTankUpdate(TankMessage msg) {
     tank->barrelRotation = sf::degrees(msg.rotationBarrel);
 
     // Check if player just died and isn't already pending respawn
-    auto clientIt = clients.find(msg.playerId);
-    if (clientIt != clients.end()) {
+    auto clientIt = clientsUDP.find(msg.playerId);
+    if (clientIt != clientsUDP.end()) {
         if (!msg.isAlive && !clientIt->second.isPendingRespawn) {
             Utils::printMsg("Player " + std::to_string(msg.playerId) + " died", error);
 
@@ -214,8 +331,8 @@ void game_server::HandleTankUpdate(TankMessage msg) {
 }
 
 void game_server::HandleDisconnect(int playerId) {
-    auto clientIt = clients.find(playerId);
-    if (clientIt == clients.end()) return;
+    auto clientIt = clientsUDP.find(playerId);
+    if (clientIt == clientsUDP.end()) return;
 
     // Free the color
     auto tankIt = tanks.find(playerId);
@@ -225,9 +342,9 @@ void game_server::HandleDisconnect(int playerId) {
     }
 
     // Remove client
-    clients.erase(clientIt);
+    clientsUDP.erase(clientIt);
 
-    // Notify all clients
+    // Notify all clientsUDP
     PlayerLeftMessage leftMsg;
     leftMsg.playerId = playerId;
 
@@ -309,29 +426,29 @@ GameStateMessage game_server::BuildGameState() {
 }
 
 void game_server::CheckClientTimeouts() {
-    std::vector<int> timedOutClients;
+    std::vector<int> timedOutclientsUDP;
 
-    for (const auto& [id, client] : clients) {
+    for (const auto& [id, client] : clientsUDP) {
         if (client.lastHeartbeat.getElapsedTime().asSeconds() > CLIENT_TIMEOUT) {
-            timedOutClients.push_back(id);
+            timedOutclientsUDP.push_back(id);
         }
     }
 
-    for (int id : timedOutClients) {
+    for (int id : timedOutclientsUDP) {
         Utils::printMsg("Player " + std::to_string(id) + " timed out", warning);
         HandleDisconnect(id);
     }
 }
 
 void game_server::BroadcastMessage(sf::Packet& packet) {
-    for (const auto& [id, client] : clients) {
+    for (const auto& [id, client] : clientsUDP) {
         socket.send(packet, client.ipAddress, client.port);
     }
 }
 
 void game_server::SendToClient(int playerId, sf::Packet& packet) {
-    auto it = clients.find(playerId);
-    if (it != clients.end()) {
+    auto it = clientsUDP.find(playerId);
+    if (it != clientsUDP.end()) {
         socket.send(packet, it->second.ipAddress, it->second.port);
     }
 }
@@ -427,7 +544,7 @@ void game_server::CreatePickUps()
     }
 }
 
-void game_server::SendPickUpsPosition(int playerId)
+void game_server::SendPickUpsPosition(sf::TcpSocket& socket, int playerId)
 {
     PickUpMessage msg;
 
@@ -455,10 +572,19 @@ void game_server::SendPickUpsPosition(int playerId)
 
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::PickUP_DATA) << msg;
-    SendToClient(playerId, packet);
+
+    if (socket.send(packet) != sf::Socket::Status::Done)
+    {
+        Utils::printMsg("Error sending pickups pos message", warning);
+    }
+    else
+    {
+        Utils::printMsg("Sent pickups pos to client", debug);
+    }
+
 }
 
-void game_server::SendObstacleSeed(int playerId)
+void game_server::SendObstacleSeed(sf::TcpSocket& socket, int playerId) const
 {
     ObstacleSeedMessage obs;
     obs.seed = SEED;
@@ -466,9 +592,15 @@ void game_server::SendObstacleSeed(int playerId)
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::OBSTACLE_SEED) << obs;
 
-    SendToClient(playerId, packet);
+    if (socket.send(packet) != sf::Socket::Status::Done)
+    {
+        Utils::printMsg("Error sending seed message", warning);
+    }
+    else
+    {
+        Utils::printMsg("Sent seed to client", debug);
+    }
 
-    Utils::printMsg("Sent seed to client", debug);
 }
 
 void game_server::CheckPendingRespawns()
@@ -499,15 +631,15 @@ void game_server::RespawnPlayer(int playerId) {
     sf::Vector2f respawnPosition = {640.f, 480.f};
     tank->position = respawnPosition;
 
-    auto clientIt = clients.find(playerId);
-    if (clientIt != clients.end()) {
+    auto clientIt = clientsUDP.find(playerId);
+    if (clientIt != clientsUDP.end()) {
         clientIt->second.prevShootState = false;
         clientIt->second.isPendingRespawn = false;
     }
 
     Utils::printMsg("Bro with id: " + std::to_string(playerId) + " back in action", success);
 
-    // Send respawn notification to all clients
+    // Send respawn notification to all clientsUDP
     PlayerRespawnedMessage respawnMsg;
     respawnMsg.playerId = playerId;
     respawnMsg.x = respawnPosition.x;

@@ -30,6 +30,7 @@ struct ConnectedClient {
     : ipAddress(address), port(port), playerId(playerId), playerName(playerName),prevShootState(false) {}
 };
 
+
 struct ServerBullet {
     int bulletId;
     std::unique_ptr<bullet> bulletObj;
@@ -51,14 +52,21 @@ struct RespawnClient
 class game_server
 {
     public:
-        explicit game_server(unsigned short port);
+        explicit game_server(unsigned short portUDP);
 
         void Update();  // Main server loop
 
     private:
         // Networking
         sf::UdpSocket socket;
-        std::unordered_map<int, ConnectedClient> clients;
+
+        sf::TcpListener tcpListener;
+        sf::SocketSelector selector;
+
+        std::unordered_map<int, ConnectedClient> clientsUDP;
+
+        std::vector<std::unique_ptr<sf::TcpSocket>> clientsTCP;
+
 
         // Game state
         std::unordered_map<int, std::unique_ptr<Tank>> tanks;
@@ -92,14 +100,17 @@ class game_server
 
 
         // Methods
-        void ProcessMessages();
+        void ProcessMessagesUDP();
+        void ProcessMessagesTCP();
+
        // void UpdateSnapShot(float dt);
         void SendGameSnapShot();
         void CheckClientTimeouts();
 
-        void SendObstacleSeed(int playerId);
-        void SendPickUpsPosition(int playerId);
+        void SendObstacleSeed(sf::TcpSocket& socket, int playerId) const;
+        void SendPickUpsPosition(sf::TcpSocket& socket, int playerId);
         void HandleJoinRequest(sf::IpAddress sender, unsigned short port, JoinRequestMessage msg);
+        void HandleJoinRequestTCP(sf::TcpSocket& socket, sf::IpAddress sender, unsigned short port, JoinRequestMessage msg);
         void HandleTankUpdate(TankMessage msg);
         void HandlePickUpsUpdate(PickUpHitMessage msg);
         void HandleDisconnect(int playerId);
