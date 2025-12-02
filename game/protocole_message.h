@@ -33,13 +33,14 @@ enum class MessageTypeProtocole : uint8_t {
 // Client requests to join
 struct JoinRequestMessage {
     std::string playerName;
+    uint16_t udpPort;
 
     friend sf::Packet& operator<<(sf::Packet& packet, const JoinRequestMessage& msg) {
-        return packet << msg.playerName;
+        return packet << msg.playerName << msg.udpPort;
     }
 
     friend sf::Packet& operator>>(sf::Packet& packet, JoinRequestMessage& msg) {
-        return packet >> msg.playerName;
+        return packet >> msg.playerName >> msg.udpPort;
     }
 };
 
@@ -54,21 +55,6 @@ struct JoinAcceptedMessage {
 
     friend sf::Packet& operator>>(sf::Packet& packet, JoinAcceptedMessage& msg) {
         return packet >> msg.assignedPlayerId >> msg.tankColor;
-    }
-};
-
-struct ClientUDPSocketInfo
-{
-    uint16_t portUDP;
-
-    friend sf::Packet& operator<<(sf::Packet& packet, const ClientUDPSocketInfo& msg)
-    {
-        return packet << msg.portUDP;
-    }
-
-    friend sf::Packet& operator>>(sf::Packet& packet, ClientUDPSocketInfo& msg)
-    {
-        return packet >> msg.portUDP;
     }
 };
 

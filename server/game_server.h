@@ -98,13 +98,17 @@ class game_server
 
         // Methods
         void ProcessMessages();
-       // void UpdateSnapShot(float dt);
+        void ProcessMessagesTCP(sf::TcpSocket& socket, MessageTypeProtocole type, sf::Packet& packet);
         void SendGameSnapShot();
         void CheckClientTimeouts();
 
-        void SendObstacleSeed(int playerId);
-        void SendPickUpsPosition(int playerId);
-        void HandleJoinRequest(sf::IpAddress sender, unsigned short port, JoinRequestMessage msg);
+        void BroadcastMessageTCP(sf::Packet& packet);
+
+        void SendObstacleSeedTCP(sf::TcpSocket& socket);
+
+        void SendPickUpsPositionTCP(sf::TcpSocket& socket);
+
+        void HandleJoinRequestTCP(sf::TcpSocket& ,JoinRequestMessage msg);
         void HandleTankUpdate(TankMessage msg);
         void HandlePickUpsUpdate(PickUpHitMessage msg);
         void HandleDisconnect(int playerId);

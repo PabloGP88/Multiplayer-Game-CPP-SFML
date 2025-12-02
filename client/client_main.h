@@ -33,6 +33,8 @@ class client_main
         void HandlePickUpUpdated(PickUpUpdatedMessage& msg);
 
         void ReceiveMessages();
+        void ReceiveMessagesTCP();
+
         void HandleJoinAccepted(JoinAcceptedMessage msg);
         void HandleGameSnapShot(GameStateMessage msg);
         void HandlePlayerJoined(PlayerJoinedMessage msg);

@@ -1,4 +1,4 @@
-//
+////
 // Created by Pablo Gonzalez Poblette on 16/11/25.
 //
 
@@ -16,6 +16,16 @@ game_server::game_server(unsigned short port)
     }
 
     socketUDP.setBlocking(false);
+    if (listenerTCP.listen(port) != sf::Socket::Status::Done)
+    {
+        Utils::printMsg("Failed to listen tcp on port " + std::to_string(port), error);
+    } else
+    {
+        Utils::printMsg("Server listening on port " + std::to_string(port), debug);
+    }
+
+    listenerTCP.setBlocking(false);
+    selectorTCP.add(listenerTCP);
 
     std::random_device rd;
     SEED= rd();
@@ -57,25 +67,60 @@ void game_server::Update() {
     }
 }
 
-void game_server::ProcessMessages() {
+void game_server::ProcessMessages()
+{
+    // Handle TCP messages
+    if (selectorTCP.wait(sf::milliseconds(10)))
+    {
+        if (selectorTCP.isReady(listenerTCP))
+        {
+            auto client = new sf::TcpSocket();
+            if (listenerTCP.accept(*client) == sf::Socket::Status::Done)
+            {
+                client->setBlocking(false);
+                clientsTCP.push_back(client);
+                selectorTCP.add(*client);
+                Utils::printMsg("New TCP client connected", success);
+            } else
+            {
+                delete client;
+            }
+        } else
+        {
+            for (auto* client : clientsTCP)
+            {
+                if (selectorTCP.isReady(*client))
+                {
+                    sf::Packet packet;
+                    sf::Socket::Status status = client->receive(packet);
+
+                    if (status == sf::Socket::Status::Done)
+                    {
+                        uint8_t typeValue;
+                        if (!(packet >> typeValue)) continue;
+
+                        MessageTypeProtocole type = static_cast<MessageTypeProtocole>(typeValue);
+                        ProcessMessagesTCP(*client, type, packet);
+                    }
+                }
+            }
+        }
+    }
+
+    // Handle UDP messages
+
     sf::Packet packet;
     std::optional<sf::IpAddress> senderIP;
     unsigned short senderPort;
 
     while (socketUDP.receive(packet, senderIP, senderPort) == sf::Socket::Status::Done) {
+
         uint8_t typeValue;
         if (!(packet >> typeValue)) continue;
 
         MessageTypeProtocole type = static_cast<MessageTypeProtocole>(typeValue);
 
         switch (type) {
-            case MessageTypeProtocole::JOIN_REQUEST: {
-                JoinRequestMessage msg;
-                if (packet >> msg) {
-                    HandleJoinRequest(senderIP.value(), senderPort, msg);
-                }
-                break;
-            }
 
         case MessageTypeProtocole::TANK_UPDATE: {
                 TankMessage msg;
@@ -112,14 +157,38 @@ void game_server::ProcessMessages() {
             }
 
             default:
-                Utils::printMsg("Unknown message type: " + std::to_string(typeValue), warning);
+                Utils::printMsg("Unknown UDP message type: " + std::to_string(typeValue), warning);
                 break;
         }
     }
 }
 
-void game_server::HandleJoinRequest(sf::IpAddress sender, unsigned short port, JoinRequestMessage msg) {
+void game_server::ProcessMessagesTCP(sf::TcpSocket& socket,MessageTypeProtocole type, sf::Packet& packet)
+{
+    switch (type)
+    {
+    case MessageTypeProtocole::JOIN_REQUEST:
+        {
+            JoinRequestMessage message;
+            if (packet >> message)
+            {
+                HandleJoinRequestTCP(socket, message);
+            }
+            break;
+        }
+    case MessageTypeProtocole::JOIN_REJECTED:
+        {
+            break;
+        }
+    case MessageTypeProtocole::JOIN_ACCEPTED:
+        {
+            break;
+        }
+    }
+}
 
+void game_server::HandleJoinRequestTCP(sf::TcpSocket& socket, JoinRequestMessage msg)
+{
     if (clientsUDP.size() >= availableColors.size())
     {
         // Server full
@@ -129,7 +198,11 @@ void game_server::HandleJoinRequest(sf::IpAddress sender, unsigned short port, J
 
         sf::Packet rejectPacket;
         rejectPacket << static_cast<uint8_t>(MessageTypeProtocole::JOIN_REJECTED) << rejectMsg;
-        socketUDP.send(rejectPacket, sender, port);
+
+        if (socket.send(rejectPacket) != sf::Socket::Status::Done)
+        {
+            Utils::printMsg("Failed to send reject request", error);
+        }
 
         return;
     }
@@ -140,9 +213,17 @@ void game_server::HandleJoinRequest(sf::IpAddress sender, unsigned short port, J
 
 
     // Create client info
-    clientsUDP.try_emplace(playerId, sender, port, playerId, msg.playerName);
+    clientsUDP.try_emplace(
+        playerId,
+        socket.getRemoteAddress().value(),
+        msg.udpPort,
+        playerId,
+        msg.playerName
+    );
+
     clientsUDP.at(playerId).lastHeartbeat.restart();
 
+    Utils::printMsg(std::to_string(msg.udpPort), error);
     tanks[playerId] = std::make_unique<Tank>(color);
     tanks[playerId]->position = {640, 480};
 
@@ -153,23 +234,25 @@ void game_server::HandleJoinRequest(sf::IpAddress sender, unsigned short port, J
 
     sf::Packet acceptPacket;
     acceptPacket << static_cast<uint8_t>(MessageTypeProtocole::JOIN_ACCEPTED) << acceptMsg;
-    socketUDP.send(acceptPacket, sender, port);
 
-    SendObstacleSeed(playerId);
-    SendPickUpsPosition(playerId);
+    if (socket.send(acceptPacket) != sf::Socket::Status::Done)
+    {
+        Utils::printMsg("Failed to send join acceptance", error);
+    }
 
-    // Notify all other clientsUDP about new player
+    SendObstacleSeedTCP(socket);
+    SendPickUpsPositionTCP(socket);
+
+    // Notify all other clients about new player
     PlayerJoinedMessage joinMsg;
     joinMsg.playerId = playerId;
     joinMsg.color = color;
 
     sf::Packet joinPacket;
     joinPacket << static_cast<uint8_t>(MessageTypeProtocole::PLAYER_JOINED) << joinMsg;
-    BroadcastMessage(joinPacket);
-
-    Utils::printMsg("Player " + std::to_string(playerId) + " with name: " + msg.playerName + " (" + color + " tank) joined from " +
-                   sender.toString() + ":" + std::to_string(port), success);
+    BroadcastMessageTCP(joinPacket);
 }
+
 
 void game_server::HandleTankUpdate(TankMessage msg) {
 
@@ -329,12 +412,22 @@ void game_server::BroadcastMessage(sf::Packet& packet) {
     }
 }
 
+void game_server::BroadcastMessageTCP(sf::Packet& packet) {
+    for (const auto& client : clientsTCP) {
+        if (client->send(packet) != sf::Socket::Status::Done)
+        {
+            Utils::printMsg("Error broadcasting player: " + std::to_string(client->getRemotePort()), warning);
+        }
+    }
+}
+
 void game_server::SendToClient(int playerId, sf::Packet& packet) {
     auto it = clientsUDP.find(playerId);
     if (it != clientsUDP.end()) {
         socketUDP.send(packet, it->second.ipAddress, it->second.port);
     }
 }
+
 
 std::string game_server::AssignColor() {
     for (size_t i = 0; i < availableColors.size(); i++) {
@@ -427,7 +520,7 @@ void game_server::CreatePickUps()
     }
 }
 
-void game_server::SendPickUpsPosition(int playerId)
+void game_server::SendPickUpsPositionTCP(sf::TcpSocket& socket)
 {
     PickUpMessage msg;
 
@@ -455,10 +548,17 @@ void game_server::SendPickUpsPosition(int playerId)
 
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::PickUP_DATA) << msg;
-    SendToClient(playerId, packet);
+
+    if (socket.send(packet) != sf::Socket::Status::Done)
+    {
+        Utils::printMsg("Error sending the pickups pos",error);
+    } else
+    {
+        Utils::printMsg("Sent the pickups pos",debug);
+    }
 }
 
-void game_server::SendObstacleSeed(int playerId)
+void game_server::SendObstacleSeedTCP(sf::TcpSocket& socket)
 {
     ObstacleSeedMessage obs;
     obs.seed = SEED;
@@ -466,7 +566,10 @@ void game_server::SendObstacleSeed(int playerId)
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::OBSTACLE_SEED) << obs;
 
-    SendToClient(playerId, packet);
+    if (socket.send(packet) != sf::Socket::Status::Done)
+    {
+        Utils::printMsg("Error sending the seed",error);
+    }
 
     Utils::printMsg("Sent seed to client", debug);
 }
@@ -572,4 +675,3 @@ void game_server::HandlePickUpsUpdate(PickUpHitMessage msg)
     packet << static_cast<uint8_t>(MessageTypeProtocole::PickUp_UPDATE) << updateMsg;
     BroadcastMessage(packet);
 }
-
