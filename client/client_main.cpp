@@ -19,7 +19,7 @@ bool client_main::Connect()
     // FIRST, try TCP connection in BLOCKING mode
     socketTCP.setBlocking(true);
 
-    sf::Socket::Status status = socketTCP.connect(serverIp, serverPort, sf::seconds(5));
+    sf::Socket::Status status = socketTCP.connect(serverIp, serverPort, sf::seconds(10));
 
     if (status != sf::Socket::Status::Done)
     {
