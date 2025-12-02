@@ -13,21 +13,20 @@ enum class MessageTypeProtocole : uint8_t {
     TANK_UPDATE = 1,
     DISCONNECT = 2,
     PickUP_HIT = 3,
-    CLIENT_UDP_SOCKET = 4,
 
     // Server -> Client
-    JOIN_ACCEPTED = 5,
-    JOIN_REJECTED = 6,
-    GAME_STATE = 7,
-    PLAYER_JOINED = 8,
-    PLAYER_LEFT = 9,
-    BULLET_SPAWNED = 10,
-    PLAYER_HIT = 11,
-    PLAYER_DIED = 12,
-    OBSTACLE_SEED = 13,
-    PLAYER_RESPAWNED = 14,
-    PickUP_DATA = 15,
-    PickUp_UPDATE = 16
+    JOIN_ACCEPTED = 4,
+    JOIN_REJECTED = 5,
+    GAME_STATE = 6,
+    PLAYER_JOINED = 7,
+    PLAYER_LEFT = 8,
+    BULLET_SPAWNED = 9,
+    PLAYER_HIT = 10,
+    PLAYER_DIED = 11,
+    OBSTACLE_SEED = 12,
+    PLAYER_RESPAWNED = 13,
+    PickUP_DATA = 14,
+    PickUp_UPDATE = 15
 };
 
 // Client requests to join
