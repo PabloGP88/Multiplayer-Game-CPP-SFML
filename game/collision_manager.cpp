@@ -7,7 +7,7 @@
 
 CollisionManager::CollisionManager(float worldWidth, float worldHeight)
     : worldWidth(worldWidth), worldHeight(worldHeight) {
-    // Create boundary walls on initialization
+    // Create walls on start
     CreateBoundaryWalls();
 }
 
@@ -23,7 +23,7 @@ bool CollisionManager::CheckCollision(const sf::FloatRect& rect, sf::Vector2f& p
             float magnitude = std::sqrt(currentPushback.x * currentPushback.x +
                                       currentPushback.y * currentPushback.y);
 
-            // Keep the smallest pushback to avoid over-correction
+            // keep the smallest one so it doesnt over calculate
             if (magnitude < smallestMagnitude) {
                 smallestMagnitude = magnitude;
                 pushback = currentPushback;
@@ -67,7 +67,7 @@ sf::Vector2f CollisionManager::CalculatePushback(const sf::FloatRect& movingRect
     float overlapTop = (movingRect.position.y + movingRect.size.y) - staticRect.position.y;
     float overlapBottom = (staticRect.position.y + staticRect.size.y) - movingRect.position.y;
 
-    // Find minimum overlap on each axis
+    // Find the MINIMUN on each axis
     float minOverlapX = std::min(overlapLeft, overlapRight);
     float minOverlapY = std::min(overlapTop, overlapBottom);
 
@@ -88,16 +88,16 @@ sf::Vector2f CollisionManager::CalculatePushback(const sf::FloatRect& movingRect
             pushback.y = overlapBottom;
         }
     } else {
-        // Normal collision - resolve the smaller axis
+        // Normal collision
         if (minOverlapX < minOverlapY) {
-            // Resolve horizontally
+            //  horizontally
             if (overlapLeft < overlapRight) {
                 pushback.x = -overlapLeft;
             } else {
                 pushback.x = overlapRight;
             }
         } else {
-            // Resolve vertically
+            //  vertically
             if (overlapTop < overlapBottom) {
                 pushback.y = -overlapTop;
             } else {

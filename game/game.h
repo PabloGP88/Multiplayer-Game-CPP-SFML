@@ -41,6 +41,25 @@ public:
 
     std::function<void(uint8_t pickupId, uint8_t pickupType)> OnPickupCollected;
 
+    // Interpolation logic
+
+    struct RemoteTankData
+    {
+        sf::Vector2f position;
+        sf::Angle bodyRotation;
+        sf::Angle barrelRotation;
+        sf::Time timestamp;
+    };
+
+    std::unordered_map<int, RemoteTankData> previousStates;
+    std::unordered_map<int, RemoteTankData> targetStates;
+    std::unordered_map<int, sf::Clock> interpClocks;
+
+    // this is the interpolation window in seconds
+    const float INTERP_TIME = 0.2f;
+
+    void AddNetworkTankState(int tankId, const GameStateMessage::PlayerState& state);
+
 private:
 
     sf::View camera; // Camera for the game
@@ -48,7 +67,6 @@ private:
     // Temporary placeholder texture, make sue to replace before rendering the sprite.
     sf::Texture placeholder = sf::Texture(sf::Vector2u(1, 1));
     sf::Texture backgroundTexture;
-
 
     void UpdatePickups(float dt);
     void RenderPickups(sf::RenderWindow& window);
@@ -68,5 +86,11 @@ private:
 
     const float WORLD_WIDTH = 1280.f;
     const float WORLD_HEIGHT = 960.f;
+
+    // Interpolation
+    void InterpolateRemoteTanks(CollisionManager& collisionManager, float dt, int tankID);
+
+    sf::Angle findLerpAngle(sf::Angle angle1, sf::Angle angle2, float t);
+
 
 };

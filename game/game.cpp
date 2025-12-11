@@ -123,7 +123,17 @@ void Game::Update(float dt)
 	collisionManager.ClearDynamicColliders();
 
 	for (auto& [id, tank] : tanks) {
-		tank->Update(dt, collisionManager);
+
+		if (id == localId)
+		{
+			// Local tank
+			tank->Update(dt, collisionManager);
+		} else
+		{
+			// Interpolate Remote Tanks
+			InterpolateRemoteTanks(collisionManager, dt, id);
+		}
+
 		tank->UpdateBullets(dt, collisionManager);
 	}
 
@@ -170,6 +180,69 @@ void Game::Update(float dt)
 	ui.Update(*tanks[localId]);
 
 }
+
+// Interpolation stuff
+void Game::InterpolateRemoteTanks(CollisionManager& collisionManager, float dt, int tankID)
+{
+	if (previousStates.find(tankID) == previousStates.end() || targetStates.find(tankID) == targetStates.end())
+	{
+		// Theres no data yet
+		return;
+	}
+
+	auto& prevState = previousStates[tankID];
+	auto& targetState = targetStates[tankID];
+	auto& clock = interpClocks[tankID];
+
+	float elapsedTime = clock.getElapsedTime().asSeconds();
+	float currentTime = std::min(elapsedTime / INTERP_TIME, 1.0f);
+
+	// Linear lerp position
+	tanks[tankID]->position = prevState.position + (targetState.position - prevState.position) * currentTime;
+	// Lerp for angles
+	tanks[tankID]->bodyRotation = findLerpAngle(prevState.bodyRotation, targetState.bodyRotation, currentTime);
+	tanks[tankID]->barrelRotation = findLerpAngle(prevState.barrelRotation, targetState.barrelRotation, currentTime);
+
+	tanks[tankID]->Update(dt, collisionManager);
+}
+
+void Game::AddNetworkTankState(int tankID, const GameStateMessage::PlayerState& state)
+{
+	if (targetStates.find(tankID) != targetStates.end()) {
+		previousStates[tankID] = targetStates[tankID];
+	}
+
+	RemoteTankData newState;
+	newState.position = {state.x, state.y};
+	newState.bodyRotation = sf::degrees(state.rotationBody);
+	newState.barrelRotation = sf::degrees(state.rotationBarrel);
+	targetStates[tankID] = newState;
+
+	// Restart interpolation timer
+	interpClocks[tankID].restart();
+}
+
+
+sf::Angle Game::findLerpAngle(sf::Angle angle1, sf::Angle angle2, float t)
+{
+	// Formula by shaunlebron - https://gist.github.com/shaunlebron/8832585#file-anglelerp-js-L9
+
+	float a0 = angle1.asRadians();
+	float a1 = angle2.asRadians();
+
+	// Find shortest angle distance
+	float pi = 3.1416;
+	float max = 2.0f * pi;
+
+	// fmod works like % but is used like this in cpp for decimals
+	float da = fmod(a1 - a0, max);
+	float shortestDist = fmod(2.0f * da, max) - da;
+
+	// Lerp and return
+	float shortestAng = a0 + shortestDist * t;
+	return sf::radians(shortestAng);
+}
+
 
 void Game::NetworkUpdate(float dt, int idTank, TankMessage data) {
 	if (tanks.find(idTank) == tanks.end()) {

@@ -8,13 +8,14 @@
 #include <cstdint>
 
 enum class MessageTypeProtocole : uint8_t {
-    // Client -> Server
+    // Client to server enums
     JOIN_REQUEST = 0,
     TANK_UPDATE = 1,
     DISCONNECT = 2,
     PickUP_HIT = 3,
 
-    // Server -> Client
+    //---------------------------------
+    // Server to client enums
     JOIN_ACCEPTED = 4,
     JOIN_REJECTED = 5,
     GAME_STATE = 6,

@@ -334,26 +334,20 @@ void client_main::HandleJoinAccepted(JoinAcceptedMessage msg)
 
 void client_main::HandleGameSnapShot(GameStateMessage msg)
 {
-    if (!game)
-        return;
-
     for (const auto& playerState : msg.players)
     {
-        // Don't overwrite local player from server
+        // NOT MESS WITH LOCAL
         if (playerState.playerId == playerId)
             continue;
 
-        // Add tank if doesn't exist
+        // Add tank if missing
         if (game->tanks.find(playerState.playerId) == game->tanks.end())
         {
             game->AddTank(playerState.playerId, playerState.color);
         }
 
-        // Update remote tank
-        Tank* tank = game->tanks[playerState.playerId].get();
-        tank->position = {playerState.x, playerState.y};
-        tank->bodyRotation = sf::degrees(playerState.rotationBody);
-        tank->barrelRotation = sf::degrees(playerState.rotationBarrel);
+        // Store data for interpo
+        game->AddNetworkTankState(playerState.playerId, playerState);
     }
 }
 
