@@ -438,7 +438,7 @@ std::string game_server::AssignColor() {
     }
 
     printf("NO COLOR AVILABLE");
-    return "blue";  // Fallback
+    return "blue";
 }
 
 void game_server::FreeColor(const std::string& color) {
