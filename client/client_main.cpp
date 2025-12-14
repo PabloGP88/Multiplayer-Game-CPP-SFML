@@ -193,6 +193,24 @@ void client_main::ReceiveMessagesTCP()
                     }
                     break;
                 }
+        case MessageTypeProtocole::PickUp_UPDATE:
+                {
+                    PickUpUpdatedMessage msg;
+                    if (packet >> msg)
+                    {
+                        HandlePickUpUpdated(msg);
+                    }
+                    break;
+                }
+        case MessageTypeProtocole::PLAYER_RESPAWNED:
+                {
+                    PlayerRespawnedMessage msg;
+                    if (packet >> msg)
+                    {
+                        HandlePlayerRespawned(msg);
+                    }
+                    break;
+                }
 
             default:
                 Utils::printMsg("Unknown message type: " + std::to_string(typeValue), warning);
@@ -230,26 +248,6 @@ void client_main::ReceiveMessages()
                 break;
             }
 
-            case MessageTypeProtocole::PLAYER_JOINED:
-            {
-                PlayerJoinedMessage msg;
-                if (packet >> msg)
-                {
-                    HandlePlayerJoined(msg);
-                }
-                break;
-            }
-
-            case MessageTypeProtocole::PLAYER_LEFT:
-            {
-                PlayerLeftMessage msg;
-                if (packet >> msg)
-                {
-                    HandlePlayerLeft(msg);
-                }
-                break;
-            }
-
             case MessageTypeProtocole::BULLET_SPAWNED:
             {
                 BulletSpawnedMessage msg;
@@ -259,55 +257,6 @@ void client_main::ReceiveMessages()
                 }
                 break;
             }
-
-            case MessageTypeProtocole::OBSTACLE_SEED:
-            {
-                ObstacleSeedMessage msg;
-                if (packet >> msg)
-                {
-                    HandleObstacles(msg);
-                }
-                break;
-            }
-
-            case MessageTypeProtocole::PLAYER_DIED:
-                {
-                    PlayerDiedMessage msg;
-                    if (packet >> msg)
-                    {
-                        HandlePlayerDied(msg);
-                    }
-                    break;
-                }
-
-            case MessageTypeProtocole::PLAYER_RESPAWNED:
-                {
-                    PlayerRespawnedMessage msg;
-                    if (packet >> msg)
-                    {
-                        HandlePlayerRespawned(msg);
-                    }
-                    break;
-                }
-
-            case MessageTypeProtocole::PickUP_DATA:
-                {
-                    PickUpMessage msg;
-                    if (packet >> msg)
-                    {
-                        HandlePickUpData(msg);
-                    }
-                    break;
-                }
-            case MessageTypeProtocole::PickUp_UPDATE:
-                {
-                    PickUpUpdatedMessage msg;
-                    if (packet >> msg)
-                    {
-                        HandlePickUpUpdated(msg);
-                    }
-                    break;
-                }
 
             default:
                 Utils::printMsg("Unknown message type: " + std::to_string(typeValue), warning);
@@ -472,13 +421,6 @@ void client_main::HandleObstacles(ObstacleSeedMessage msg)
     }
 }
 
-void client_main::HandlePlayerDied(PlayerDiedMessage msg)
-{
-    if (!game)
-        return;
-
-
-}
 
 void client_main::HandlePlayerRespawned(PlayerRespawnedMessage msg)
 {

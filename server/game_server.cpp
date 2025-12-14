@@ -316,7 +316,7 @@ void game_server::HandleDisconnect(int playerId) {
 
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::PLAYER_LEFT) << leftMsg;
-    BroadcastMessage(packet);
+    BroadcastMessageTCP(packet);
 
     Utils::printMsg("Player " + std::to_string(playerId) + " disconnected", warning);
 }
@@ -618,7 +618,7 @@ void game_server::RespawnPlayer(int playerId) {
 
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::PLAYER_RESPAWNED) << respawnMsg;
-    BroadcastMessage(packet);
+    BroadcastMessageTCP(packet);
 }
 
 void game_server::HandlePickUpsUpdate(PickUpHitMessage msg)
@@ -673,5 +673,5 @@ void game_server::HandlePickUpsUpdate(PickUpHitMessage msg)
 
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::PickUp_UPDATE) << updateMsg;
-    BroadcastMessage(packet);
+    BroadcastMessageTCP(packet);
 }
