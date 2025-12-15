@@ -22,7 +22,7 @@ If you want to download and run the program in another IDE, such as **Visual Stu
 For details on how this can be done, see:  
 [CMake projects in Visual Studio (Microsoft Learn)](https://learn.microsoft.com/en-us/cpp/build/cmake-projects-in-visual-studio?view=msvc-170)
 
-![Game Screenshot](assets/ss.png)
+<img src="assets/ss.png" alt="Game Screenshot" width="250" height="250">
 
 ---
 
