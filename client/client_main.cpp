@@ -29,7 +29,7 @@ bool client_main::Connect()
 
     Utils::printMsg("TCP connected to server", success);
 
-    // NOW set to non-blocking for message processing
+    // NOW set to non-blocking for message processingcwith both tcp and udp
     socketTCP.setBlocking(false);
 
     Utils::printMsg("UDP Port: " + std::to_string(socketUDP.getLocalPort()), debug);

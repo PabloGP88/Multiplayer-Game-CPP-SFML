@@ -32,7 +32,7 @@ game_server::game_server(unsigned short port)
 
     CreatePickUps();
 
-    Utils::printMsg("=== SERVER STARTED ===", success);
+    Utils::printMsg("------- Server LISTENING ------- ", success);
     Utils::printMsg("Port: " + std::to_string(port), info);
     Utils::printMsg("Tick Rate: " + std::to_string(TICK_RATE) + " Hz", info);
     Utils::printMsg("Health Kits created: " + std::to_string(healthKits.size()), success);

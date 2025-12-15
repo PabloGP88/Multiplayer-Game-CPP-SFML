@@ -7,7 +7,6 @@
 #include <iostream>
 
 int main() {
-    Utils::printMsg("=== TANK GAME DEDICATED SERVER ===", success);
 
     unsigned short port = 53000;
 
