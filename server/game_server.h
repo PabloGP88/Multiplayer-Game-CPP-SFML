@@ -79,7 +79,7 @@ class game_server
         std::vector<bool> colorUsed = {false, false, false, false};
 
         // Server settings
-        const float TICK_RATE = 60.0f;  // ticks per second
+        const float TICK_RATE = 60.0f;  // ticks per second, based on how valve has tickrate for csgo https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking
         const float CLIENT_TIMEOUT = 10.0f;  // seconds timeout
         const float RESPAWN_TIME = 2.0f; // 2 seconds
         const int SLEEP_TIME = 10; // miliseconds

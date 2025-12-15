@@ -244,7 +244,6 @@ void game_server::HandleJoinRequestTCP(sf::TcpSocket& socket, JoinRequestMessage
     BroadcastMessageTCP(joinPacket);
 }
 
-
 void game_server::HandleTankUpdate(TankMessage msg) {
 
     auto tankIt = tanks.find(msg.playerId);
@@ -418,7 +417,6 @@ void game_server::SendToClient(int playerId, sf::Packet& packet) {
         socketUDP.send(packet, client->second.ipAddress, client->second.port);
     }
 }
-
 
 std::string game_server::AssignColor() {
     for (size_t i = 0; i < availableColors.size(); i++) {
