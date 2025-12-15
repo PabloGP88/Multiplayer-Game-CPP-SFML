@@ -1,2 +1,3 @@
-# Multiplayer-Game-C-SFML
-Multiplayer tanks games created with c++ using sfml as school project in Abertay
+# .io-Style Tank Game
+**José Pablo González Poblette**
+**Student Id: 2507739**
