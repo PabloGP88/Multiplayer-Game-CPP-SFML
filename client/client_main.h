@@ -32,18 +32,19 @@ class client_main
         void HandlePickUpData(PickUpMessage& msg);
         void HandlePickUpUpdated(PickUpUpdatedMessage& msg);
 
-        void ReceiveMessagesUDP();
+        void ReceiveMessages();
         void ReceiveMessagesTCP();
+
         void HandleJoinAccepted(JoinAcceptedMessage msg);
-        void HandleGameSnapShot(GameStateMessage msg);
+        void HandleGameSnapShot(GameSnapMessage msg);
         void HandlePlayerJoined(PlayerJoinedMessage msg);
         void HandlePlayerLeft(PlayerLeftMessage msg);
         void HandleBulletSpawned(BulletSpawnedMessage msg);
 
 
         // Get Connection state and Player id
-        bool IsConnected() const { return isConnected; }
-        int GetPlayerId() const { return playerId; }
+        [[nodiscard]] bool IsConnected() const { return isConnected; }
+        [[nodiscard]] int GetPlayerId() const { return playerId; }
 
 
         void SendPickupHit(uint8_t pickupId, uint8_t pickupType);
@@ -55,7 +56,6 @@ class client_main
         // Network
         sf::UdpSocket socketUDP;
         sf::TcpSocket socketTCP;
-
         sf::IpAddress serverIp;
         unsigned short serverPort;
         bool isConnected;

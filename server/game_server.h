@@ -30,10 +30,9 @@ struct ConnectedClient {
     : ipAddress(address), port(port), playerId(playerId), playerName(playerName),prevShootState(false) {}
 };
 
-
-struct ServerBullet {
+struct Bullet {
     int bulletId;
-    std::unique_ptr<bullet> bulletObj;
+    std::unique_ptr<bullet> bulletPrefab;
     int ownerId;
 };
 
@@ -52,25 +51,23 @@ struct RespawnClient
 class game_server
 {
     public:
-        explicit game_server(unsigned short portUDP);
+        explicit game_server(unsigned short port);
 
-        void Update();  // Main server loop
+        void Update();
 
     private:
         // Networking
-        sf::UdpSocket socket;
 
-        sf::TcpListener tcpListener;
-        sf::SocketSelector selector;
+        sf::TcpListener listenerTCP;
+        sf::SocketSelector selectorTCP;
+        std::vector<sf::TcpSocket*> clientsTCP;
 
+        sf::UdpSocket socketUDP;
         std::unordered_map<int, ConnectedClient> clientsUDP;
-
-        std::vector<std::unique_ptr<sf::TcpSocket>> clientsTCP;
-
 
         // Game state
         std::unordered_map<int, std::unique_ptr<Tank>> tanks;
-        std::vector<ServerBullet> bullets;
+        std::vector<Bullet> bullets;
         CollisionManager collisionManager;
 
         // ID management
@@ -82,9 +79,10 @@ class game_server
         std::vector<bool> colorUsed = {false, false, false, false};
 
         // Server settings
-        const float TICK_RATE = 60.0f;  // 60 ticks per second
-        const float CLIENT_TIMEOUT = 5.0f;  // 5 seconds timeout
+        const float TICK_RATE = 60.0f;  // ticks per second, based on how valve has tickrate for csgo https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking
+        const float CLIENT_TIMEOUT = 10.0f;  // seconds timeout
         const float RESPAWN_TIME = 2.0f; // 2 seconds
+        const int SLEEP_TIME = 10; // miliseconds
 
         // Obstacles
         std::vector<std::unique_ptr<obstacle>> obstacles;
@@ -95,22 +93,23 @@ class game_server
 
         std::vector<std::unique_ptr<pickUp>> pickUps;
 
-        // Death and respawn tracking
+        // array to store respowning tanks
         std::vector<RespawnClient> pendingRespawns;
 
 
         // Methods
-        void ProcessMessagesUDP();
-        void ProcessMessagesTCP();
-
-       // void UpdateSnapShot(float dt);
+        void ProcessMessages();
+        void ProcessMessagesTCP(sf::TcpSocket& socket, MessageTypeProtocole type, sf::Packet& packet);
         void SendGameSnapShot();
         void CheckClientTimeouts();
 
-        void SendObstacleSeed(sf::TcpSocket& socket, int playerId) const;
-        void SendPickUpsPosition(sf::TcpSocket& socket, int playerId);
-        void HandleJoinRequest(sf::IpAddress sender, unsigned short port, JoinRequestMessage msg);
-        void HandleJoinRequestTCP(sf::TcpSocket& socket, sf::IpAddress sender, unsigned short port, JoinRequestMessage msg);
+        void BroadcastMessageTCP(sf::Packet& packet);
+
+        void SendObstacleSeedTCP(sf::TcpSocket& socket);
+
+        void SendPickUpsPositionTCP(sf::TcpSocket& socket);
+
+        void HandleJoinRequestTCP(sf::TcpSocket& ,JoinRequestMessage msg);
         void HandleTankUpdate(TankMessage msg);
         void HandlePickUpsUpdate(PickUpHitMessage msg);
         void HandleDisconnect(int playerId);
@@ -132,5 +131,5 @@ class game_server
 
         uint16_t SEED;
 
-        GameStateMessage BuildGameState();
+        GameSnapMessage BuildGameSnap();
 };

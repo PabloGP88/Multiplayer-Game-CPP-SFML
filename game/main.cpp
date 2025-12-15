@@ -4,11 +4,13 @@
 #include "utils.h"
 #include "../client/client_main.h"
 #include "../server/game_server.h"
+#include "../config.h"
+
 
 void RunServer() {
-    Utils::printMsg("=== STARTING  SERVER ===", success);
+    Utils::printMsg("Started as SERVER", success);
 
-    unsigned short port = 53000;
+    unsigned short port = Config::getServerPort();
 
     try {
         game_server server(port);
@@ -20,17 +22,18 @@ void RunServer() {
 }
 
 void RunClient() {
-    Utils::printMsg("=== TANK GAME CLIENT ===", success);
+    Utils::printMsg("Started as CLIENT", success);
 
     // Use local IP - TODO: Talk this to teacher to see if is really what I need to do
-    std::optional<sf::IpAddress> serverIP = sf::IpAddress::getLocalAddress();
+    std::optional<sf::IpAddress> serverIP = sf::IpAddress::resolve(Config::getServerIP());
+    unsigned short serverPort = Config::getServerPort();
+
 
     if (!serverIP.has_value()) {
         Utils::printMsg("Failed to get local IP address", error);
         return;
     }
 
-    unsigned short serverPort = 53000;
 
     Utils::printMsg("Server IP: " + serverIP.value().toString(), info);
 
@@ -48,14 +51,14 @@ void RunClient() {
     sf::RenderWindow window(sf::VideoMode({480, 360}), "Tank Game - Client");
     window.setFramerateLimit(60);
 
-    Utils::printMsg("=== GAME STARTED ===", success);
+    Utils::printMsg("------- Game Created ------- ", success);
 
     sf::Clock clock;
 
     while (window.isOpen()) {
         float dt = clock.restart().asSeconds();
 
-        // Handle events
+        // Handle events just as in the labs
         while (const std::optional event = window.pollEvent()) {
             if (event->is<sf::Event::Closed>()) {
                 client.Disconnect();
@@ -69,21 +72,19 @@ void RunClient() {
                 }
             }
 
-            // Pass input to game
+            // Pass input to game, done like the labs
             if (client.game) {
                 client.game->HandleEvents(event, client.GetPlayerId());
             }
         }
 
-        // Update game locally
         if (client.game) {
             client.game->Update(dt);
         }
 
-        // Network update
+        // Client Update handles networking such as receiving and sending packages
         client.Update();
 
-        // Render
         window.clear();
         if (client.game) {
             client.game->Render(window);
@@ -91,11 +92,10 @@ void RunClient() {
         window.display();
     }
 
-    Utils::printMsg("=== GAME ENDED ===", warning);
 }
 
 int main() {
-    Utils::printMsg("=== TANK GAME ===", success);
+    Utils::printMsg(" CMP501 – Tank Network Game - Pablo Gonzalez", success);
 
     std::string choice;
     std::cout << "Launch as:" << std::endl;
@@ -109,7 +109,7 @@ int main() {
     } else if (choice == "2") {
         RunClient();
     } else {
-        Utils::printMsg("Invalid choice!", error);
+        Utils::printMsg("Invalid choice", error);
         return 1;
     }
 

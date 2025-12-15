@@ -8,25 +8,37 @@
 client_main::client_main(sf::IpAddress serverIp, unsigned short serverPort)
     : serverIp(serverIp), serverPort(serverPort), isConnected(false), playerId(-1)
 {
+    if (socketUDP.bind(sf::Socket::AnyPort) != sf::Socket::Status::Done) {
+        Utils::printMsg("Failed to bind UDP socket", error);
+    }
     socketUDP.setBlocking(false);
 }
 
 bool client_main::Connect()
 {
-    if (socketTCP.connect(serverIp,serverPort) != sf::Socket::Status::Done)
+    // FIRST, try TCP connection in BLOCKING mode
+    socketTCP.setBlocking(true);
+
+    sf::Socket::Status status = socketTCP.connect(serverIp, serverPort, sf::seconds(10));
+
+    if (status != sf::Socket::Status::Done)
     {
-        Utils::printMsg("Failed to establish TCP binding", error);
+        Utils::printMsg("Failed to connect to server via TCP", error);
         return false;
     }
 
+    Utils::printMsg("TCP connected to server", success);
+
+    // NOW set to non-blocking for message processingcwith both tcp and udp
     socketTCP.setBlocking(false);
 
+    Utils::printMsg("UDP Port: " + std::to_string(socketUDP.getLocalPort()), debug);
+
     JoinRequestMessage joinMsg;
+    joinMsg.udpPort = socketUDP.getLocalPort();
 
     std::cout << "Enter player name: ";
     std::getline(std::cin, joinMsg.playerName);
-
-    std::cout << "Player name set to: " << joinMsg.playerName << std::endl;
 
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::JOIN_REQUEST) << joinMsg;
@@ -39,22 +51,23 @@ bool client_main::Connect()
 
     Utils::printMsg("Join request sent, waiting for response...", info);
 
-    // Wait for response
+    // I'm using timeout of 5 seconds but this value is totally customizable, also
+    // I could a logic for trying multiple times to join but dint have time
     sf::Clock timeout;
+
     while (timeout.getElapsedTime().asSeconds() < 5.0f)
     {
         sf::Packet responsePacket;
-        std::optional<sf::IpAddress> sender;
-        unsigned short port;
+        sf::Socket::Status receiveStatus = socketTCP.receive(responsePacket);
 
-        if (socketTCP.receive(responsePacket) == sf::Socket::Status::Done)
+        if (receiveStatus == sf::Socket::Status::Done)
         {
-            uint8_t typeValue;
-            if (responsePacket >> typeValue)
+            uint8_t typeMessage;
+            if (responsePacket >> typeMessage)
             {
-                MessageTypeProtocole type = static_cast<MessageTypeProtocole>(typeValue);
+                MessageTypeProtocole msg = static_cast<MessageTypeProtocole>(typeMessage);
 
-                if (type == MessageTypeProtocole::JOIN_ACCEPTED)
+                if (msg == MessageTypeProtocole::JOIN_ACCEPTED)
                 {
                     JoinAcceptedMessage acceptMsg;
                     if (responsePacket >> acceptMsg)
@@ -62,21 +75,28 @@ bool client_main::Connect()
                         HandleJoinAccepted(acceptMsg);
                         return true;
                     }
-                } else if (type == MessageTypeProtocole::JOIN_REJECTED)
+                }
+                else if (msg == MessageTypeProtocole::JOIN_REJECTED)
                 {
                     JoinRejectedMessage rejectMsg;
-                    if (responsePacket >> rejectMsg) {
+                    if (responsePacket >> rejectMsg)
+                    {
                         Utils::printMsg(rejectMsg.message, error);
                         return false;
                     }
                 }
             }
         }
+        else if (receiveStatus == sf::Socket::Status::Disconnected)
+        {
+            Utils::printMsg("Server disconnected during join", error);
+            return false;
+        }
 
         sf::sleep(sf::milliseconds(100));
     }
 
-    Utils::printMsg("Could not connect to the server, check your connection mate...", error);
+    Utils::printMsg("Connection timeout - server did not respond", error);
     return false;
 }
 
@@ -95,7 +115,7 @@ void client_main::Disconnect()
 
 void client_main::Update()
 {
-    ReceiveMessagesUDP();
+    ReceiveMessages();
     ReceiveMessagesTCP();
     SendPosition();
 }
@@ -115,34 +135,109 @@ void client_main::SendPosition()
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::TANK_UPDATE) << msg;
 
-    socketUDP.send(packet, serverIp, serverPort);
+    if (socketUDP.send(packet, serverIp, serverPort) != sf::Socket::Status::Done)
+    {
+        Utils::printMsg("UDP SEND FAILED", error);
+    }
 }
 
 void client_main::ReceiveMessagesTCP()
 {
+    if (!isConnected)
+        return;
 
     sf::Packet packet;
 
     while (socketTCP.receive(packet) == sf::Socket::Status::Done)
     {
-        int typeValue;
-        if (!(packet >> typeValue))
+        uint8_t typeMessage;
+        if (!(packet >> typeMessage))
             continue;
 
-        MessageTypeProtocole type = static_cast<MessageTypeProtocole>(typeValue);
+        MessageTypeProtocole msg = static_cast<MessageTypeProtocole>(typeMessage);
 
-        switch (type)
+        switch (msg)
         {
-        case MessageTypeProtocole::JOIN_ACCEPTED:
-            Utils::printMsg("SERVER ACCEPTED TCP PETITION", error);
-            break;;
+            case MessageTypeProtocole::PLAYER_JOINED:
+                    {
+                        PlayerJoinedMessage msg;
+                        if (packet >> msg)
+                        {
+                            HandlePlayerJoined(msg);
+                        }
+                        break;
+                    }
 
-        default: ;
+            case MessageTypeProtocole::PLAYER_LEFT:
+                    {
+                        PlayerLeftMessage msg;
+                        if (packet >> msg)
+                        {
+                            HandlePlayerLeft(msg);
+                        }
+                        break;
+                    }
+
+            case MessageTypeProtocole::OBSTACLE_SEED:
+                    {
+                        ObstacleSeedMessage msg;
+                        if (packet >> msg)
+                        {
+                            HandleObstacles(msg);
+                        }
+                        break;
+                    }
+
+            case MessageTypeProtocole::PickUP_DATA:
+                    {
+                        PickUpMessage msg;
+                        if (packet >> msg)
+                        {
+                            HandlePickUpData(msg);
+                        }
+                        break;
+                    }
+
+            case MessageTypeProtocole::PickUp_UPDATE:
+                    {
+                        PickUpUpdatedMessage msg;
+                        if (packet >> msg)
+                        {
+                            HandlePickUpUpdated(msg);
+                        }
+                        break;
+                    }
+
+            case MessageTypeProtocole::PLAYER_RESPAWNED:
+                    {
+                        PlayerRespawnedMessage msg;
+                        if (packet >> msg)
+                        {
+                            HandlePlayerRespawned(msg);
+                        }
+                        break;
+                    }
+
+            case MessageTypeProtocole::PLAYER_DIED:
+                    {
+                        PlayerDiedMessage msg;
+                        if (packet >> msg)
+                        {
+                            HandlePlayerDied(msg);
+                        }
+
+                        break;
+                    }
+
+            default:
+                Utils::printMsg("Unknown message type: " + std::to_string(typeMessage), warning);
+                break;
+
         }
     }
 }
 
-void client_main::ReceiveMessagesUDP()
+void client_main::ReceiveMessages()
 {
     if (!isConnected)
         return;
@@ -153,41 +248,20 @@ void client_main::ReceiveMessagesUDP()
 
     while (socketUDP.receive(packet, sender, port) == sf::Socket::Status::Done)
     {
-        uint8_t typeValue;
-        if (!(packet >> typeValue))
+        uint8_t typeMessage;
+        if (!(packet >> typeMessage))
             continue;
 
-        MessageTypeProtocole type = static_cast<MessageTypeProtocole>(typeValue);
+        MessageTypeProtocole msg = static_cast<MessageTypeProtocole>(typeMessage);
 
-        switch (type)
+        switch (msg)
         {
             case MessageTypeProtocole::GAME_STATE:
             {
-                GameStateMessage msg;
+                GameSnapMessage msg;
                 if (packet >> msg)
                 {
                     HandleGameSnapShot(msg);
-                }
-                break;
-            }
-
-            case MessageTypeProtocole::PLAYER_JOINED:
-            {
-                Utils::printMsg("SERVER JOINED UDP PETITION", error);
-                PlayerJoinedMessage msg;
-                if (packet >> msg)
-                {
-                    HandlePlayerJoined(msg);
-                }
-                break;
-            }
-
-            case MessageTypeProtocole::PLAYER_LEFT:
-            {
-                PlayerLeftMessage msg;
-                if (packet >> msg)
-                {
-                    HandlePlayerLeft(msg);
                 }
                 break;
             }
@@ -202,57 +276,8 @@ void client_main::ReceiveMessagesUDP()
                 break;
             }
 
-            case MessageTypeProtocole::OBSTACLE_SEED:
-            {
-                ObstacleSeedMessage msg;
-                if (packet >> msg)
-                {
-                    HandleObstacles(msg);
-                }
-                break;
-            }
-
-            case MessageTypeProtocole::PLAYER_DIED:
-                {
-                    PlayerDiedMessage msg;
-                    if (packet >> msg)
-                    {
-                        HandlePlayerDied(msg);
-                    }
-                    break;
-                }
-
-            case MessageTypeProtocole::PLAYER_RESPAWNED:
-                {
-                    PlayerRespawnedMessage msg;
-                    if (packet >> msg)
-                    {
-                        HandlePlayerRespawned(msg);
-                    }
-                    break;
-                }
-
-            case MessageTypeProtocole::PickUP_DATA:
-                {
-                    PickUpMessage msg;
-                    if (packet >> msg)
-                    {
-                        HandlePickUpData(msg);
-                    }
-                    break;
-                }
-            case MessageTypeProtocole::PickUp_UPDATE:
-                {
-                    PickUpUpdatedMessage msg;
-                    if (packet >> msg)
-                    {
-                        HandlePickUpUpdated(msg);
-                    }
-                    break;
-                }
-
             default:
-                Utils::printMsg("Unknown message type: " + std::to_string(typeValue), warning);
+                Utils::printMsg("Unknown message type: " + std::to_string(typeMessage), warning);
                 break;
         }
     }
@@ -270,33 +295,33 @@ void client_main::HandleJoinAccepted(JoinAcceptedMessage msg)
     game->OnPickupCollected = [this](uint8_t pickupId, uint8_t pickupType) {
         SendPickupHit(pickupId, pickupType);
     };
+
     Utils::printMsg("Connected Player ID: " + std::to_string(playerId) +
                    " Color: " + playerColour, success);
 }
 
-void client_main::HandleGameSnapShot(GameStateMessage msg)
+void client_main::HandleGameSnapShot(GameSnapMessage msg)
 {
-    if (!game)
-        return;
-
     for (const auto& playerState : msg.players)
     {
-        // Don't overwrite local player from server
+        // NOT MESS WITH LOCAL
         if (playerState.playerId == playerId)
             continue;
 
-        // Add tank if doesn't exist
+        // Add tank if missing
         if (game->tanks.find(playerState.playerId) == game->tanks.end())
         {
             game->AddTank(playerState.playerId, playerState.color);
         }
 
-        // Update remote tank
-        Tank* tank = game->tanks[playerState.playerId].get();
-        tank->position = {playerState.x, playerState.y};
-        tank->bodyRotation = sf::degrees(playerState.rotationBody);
-        tank->barrelRotation = sf::degrees(playerState.rotationBarrel);
+        // Store data for interpo
+        game->AddNetworkTankState(playerState.playerId, playerState);
     }
+}
+
+void client_main::HandlePlayerDied(PlayerDiedMessage msg)
+{
+    Utils::printMsg("Player with id: " + std::to_string(msg.victimId) + " died", info);
 }
 
 void client_main::HandlePlayerJoined(PlayerJoinedMessage msg)
@@ -313,10 +338,10 @@ void client_main::HandlePlayerLeft(PlayerLeftMessage msg)
     if (!game)
         return;
 
-    auto it = game->tanks.find(msg.playerId);
-    if (it != game->tanks.end())
+    auto  missingTank = game->tanks.find(msg.playerId);
+    if (missingTank != game->tanks.end())
     {
-        game->tanks.erase(it);
+        game->tanks.erase(missingTank);
         Utils::printMsg("Player " + std::to_string(msg.playerId) + " left", warning);
     }
 }
@@ -326,21 +351,21 @@ void client_main::HandleBulletSpawned(BulletSpawnedMessage msg)
     if (!game)
         return;
 
-    // Create bullet at the position specified by server
+    // Create bullet with pos and rot that the server said
     sf::Vector2f bulletPos(msg.x, msg.y);
     sf::Angle bulletRotation = sf::degrees(msg.rotation);
 
     // Find the owner tank
-    auto tankIt = game->tanks.find(msg.ownerId);
-    if (tankIt != game->tanks.end())
+    auto tankShooter = game->tanks.find(msg.ownerId);
+    if (tankShooter != game->tanks.end())
     {
         // Add bullet to the tank's bullet list
-        tankIt->second->bullets.push_back(
+        tankShooter->second->bullets.push_back(
             std::make_unique<bullet>(bulletPos, bulletRotation, 400.f)
         );
 
 
-        tankIt->second->DecreaseAmmo(1); // Reduce owner's ammo
+        tankShooter->second->DecreaseAmmo(1);
     }
 }
 
@@ -375,13 +400,17 @@ void client_main::HandleObstacles(ObstacleSeedMessage msg)
     int minSize = 3;
     int maxSize = 6;
 
+    // SEED sent by the server for optimization, instead of the server creating the entire world
+
     std::mt19937 gen(msg.seed);
     std::uniform_real_distribution<float> posX(0.f, 800.f);
     std::uniform_real_distribution<float> posY(0.f, 600);
     std::uniform_int_distribution<int> sizeDist(minSize, maxSize);
 
     sf::Vector2f spawnPoint(640.f, 480.f);
-    float minSpawnClearance = 100.f;
+
+    // This variable is to keep clear the center since that is the spawn point, that way I avoid collision issues
+    float spawnDistance = 100.f;
 
     for (int i = 0; i < numRocks; i++)
     {
@@ -396,7 +425,7 @@ void client_main::HandleObstacles(ObstacleSeedMessage msg)
                 std::pow(pos.x - spawnPoint.x, 2) + std::pow(pos.y - spawnPoint.y, 2)
                 );
 
-            if (dist > minSpawnClearance)
+            if (dist > spawnDistance)
             {
                 validPosition = true;
             }
@@ -420,13 +449,6 @@ void client_main::HandleObstacles(ObstacleSeedMessage msg)
     }
 }
 
-void client_main::HandlePlayerDied(PlayerDiedMessage msg)
-{
-    if (!game)
-        return;
-
-
-}
 
 void client_main::HandlePlayerRespawned(PlayerRespawnedMessage msg)
 {
@@ -436,13 +458,12 @@ void client_main::HandlePlayerRespawned(PlayerRespawnedMessage msg)
     auto tank = game->tanks.find(msg.playerId);
     if (tank != game->tanks.end())
     {
-        // Update tank position to respawn location
+        // Retorn tank to spaen pos
         tank->second->position = {msg.x, msg.y};
 
-        // Clear bullets for this tank
+        // Clear bullets
         tank->second->bullets.clear();
         tank->second->Reset();
-
     }
 }
 
@@ -478,12 +499,10 @@ void client_main::HandlePickUpUpdated(PickUpUpdatedMessage& msg)
     if (!game)
         return;
 
-    Utils::printMsg("GOT INFO FROM SERVER");
-
     // Find the pickup by its stored ID
     if (msg.pickUpType == 0)
     {
-        // AmmoBox - search through ammoBoxes for matching ID
+        // AmmoBox
         for (auto& ammoBox : game->ammoBoxes)
         {
             if (ammoBox->GetPickupId() == msg.pickUpId)
@@ -498,7 +517,7 @@ void client_main::HandlePickUpUpdated(PickUpUpdatedMessage& msg)
     }
     else if (msg.pickUpType == 1)
     {
-        // HealthKit - search through healthKits for matching ID
+        // HealthKit
         for (auto& healthKit : game->healthKits)
         {
             if (healthKit->GetPickupId() == msg.pickUpId)

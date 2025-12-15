@@ -86,7 +86,7 @@ private:
     // to remove the need to use placeholder textures for sprite initialisation.
 
 
-    float movementSpeed = 200.f;
+    float movementSpeed = 300.f;
     float rotationSpeed = 200.f;
     float barrelSpeed = 300.0f;
 

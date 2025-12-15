@@ -8,13 +8,14 @@
 #include <cstdint>
 
 enum class MessageTypeProtocole : uint8_t {
-    // Client -> Server
+    // Client to server enums
     JOIN_REQUEST = 0,
     TANK_UPDATE = 1,
     DISCONNECT = 2,
     PickUP_HIT = 3,
 
-    // Server -> Client
+    //---------------------------------
+    // Server to client enums
     JOIN_ACCEPTED = 4,
     JOIN_REJECTED = 5,
     GAME_STATE = 6,
@@ -32,13 +33,14 @@ enum class MessageTypeProtocole : uint8_t {
 // Client requests to join
 struct JoinRequestMessage {
     std::string playerName;
+    uint16_t udpPort;
 
     friend sf::Packet& operator<<(sf::Packet& packet, const JoinRequestMessage& msg) {
-        return packet << msg.playerName;
+        return packet << msg.playerName << msg.udpPort;
     }
 
     friend sf::Packet& operator>>(sf::Packet& packet, JoinRequestMessage& msg) {
-        return packet >> msg.playerName;
+        return packet >> msg.playerName >> msg.udpPort;
     }
 };
 
@@ -93,9 +95,10 @@ struct TankMessage {
     }
 };
 
-// Complete game state from server
-struct GameStateMessage {
-    struct PlayerState {
+// Complete game snapshot
+struct GameSnapMessage {
+
+    struct Player {
         uint8_t playerId;
         float x, y;
         float rotationBody;
@@ -106,17 +109,17 @@ struct GameStateMessage {
         std::string color;
     };
 
-    struct BulletState {
+    struct Bullet {
         uint8_t bulletId;
         float x, y;
         float rotation;
         uint8_t ownerId;
     };
 
-    std::vector<PlayerState> players;
-    std::vector<BulletState> bullets;
+    std::vector<Player> players;
+    std::vector<Bullet> bullets;
 
-    friend sf::Packet& operator<<(sf::Packet& packet, const GameStateMessage& msg) {
+    friend sf::Packet& operator<<(sf::Packet& packet, const GameSnapMessage& msg) {
         // Players
         packet << static_cast<uint32_t>(msg.players.size());
         for (const auto& p : msg.players) {
@@ -133,7 +136,7 @@ struct GameStateMessage {
         return packet;
     }
 
-    friend sf::Packet& operator>>(sf::Packet& packet, GameStateMessage& msg) {
+    friend sf::Packet& operator>>(sf::Packet& packet, GameSnapMessage& msg) {
         uint32_t playerCount, bulletCount;
 
         // Players
@@ -141,11 +144,11 @@ struct GameStateMessage {
         msg.players.clear();
         msg.players.reserve(playerCount);
         for (uint32_t i = 0; i < playerCount; i++) {
-            GameStateMessage::PlayerState p;
-            packet >> p.playerId >> p.x >> p.y
-                   >> p.rotationBody >> p.rotationBarrel
-                   >> p.health >> p.ammo >> p.isAlive >> p.color;
-            msg.players.push_back(p);
+            GameSnapMessage::Player player;
+            packet >> player.playerId >> player.x >> player.y
+                   >> player.rotationBody >> player.rotationBarrel
+                   >> player.health >> player.ammo >> player.isAlive >> player.color;
+            msg.players.push_back(player);
         }
 
         // Bullets
@@ -153,9 +156,9 @@ struct GameStateMessage {
         msg.bullets.clear();
         msg.bullets.reserve(bulletCount);
         for (uint32_t i = 0; i < bulletCount; i++) {
-            GameStateMessage::BulletState b;
-            packet >> b.bulletId >> b.x >> b.y >> b.rotation >> b.ownerId;
-            msg.bullets.push_back(b);
+            GameSnapMessage::Bullet bullet;
+            packet >> bullet.bulletId >> bullet.x >> bullet.y >> bullet.rotation >> bullet.ownerId;
+            msg.bullets.push_back(bullet);
         }
         return packet;
     }
@@ -231,6 +234,7 @@ struct PlayerRespawnedMessage {
     }
 };
 
+// Server sends seed
 struct ObstacleSeedMessage
 {
     uint16_t seed;
@@ -245,19 +249,7 @@ struct ObstacleSeedMessage
     }
 };
 
-struct BulletDestroyedMessage
-{
-    uint8_t bulletId;
-
-    friend sf::Packet& operator<<(sf::Packet& packet, const BulletDestroyedMessage& msg) {
-        return packet << msg.bulletId;
-    }
-
-    friend sf::Packet& operator>>(sf::Packet& packet, BulletDestroyedMessage& msg) {
-        return packet >> msg.bulletId;
-    }
-};
-
+// Send pickups
 struct PickUpMessage
 {
     struct PickUpData
@@ -297,6 +289,7 @@ struct PickUpMessage
     }
 };
 
+// Player hit specific pickup
 struct PickUpHitMessage
 {
     uint8_t playerId;
@@ -315,6 +308,7 @@ struct PickUpHitMessage
     }
 };
 
+// New specific pickup pos
 struct PickUpUpdatedMessage
 {
     uint8_t pickUpId;
