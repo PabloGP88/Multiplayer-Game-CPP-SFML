@@ -30,9 +30,9 @@ struct ConnectedClient {
     : ipAddress(address), port(port), playerId(playerId), playerName(playerName),prevShootState(false) {}
 };
 
-struct ServerBullet {
+struct Bullet {
     int bulletId;
-    std::unique_ptr<bullet> bulletObj;
+    std::unique_ptr<bullet> bulletPrefab;
     int ownerId;
 };
 
@@ -53,7 +53,7 @@ class game_server
     public:
         explicit game_server(unsigned short port);
 
-        void Update();  // Main server loop
+        void Update();
 
     private:
         // Networking
@@ -67,7 +67,7 @@ class game_server
 
         // Game state
         std::unordered_map<int, std::unique_ptr<Tank>> tanks;
-        std::vector<ServerBullet> bullets;
+        std::vector<Bullet> bullets;
         CollisionManager collisionManager;
 
         // ID management
@@ -79,9 +79,10 @@ class game_server
         std::vector<bool> colorUsed = {false, false, false, false};
 
         // Server settings
-        const float TICK_RATE = 60.0f;  // 60 ticks per second
-        const float CLIENT_TIMEOUT = 5.0f;  // 5 seconds timeout
+        const float TICK_RATE = 60.0f;  // ticks per second
+        const float CLIENT_TIMEOUT = 10.0f;  // seconds timeout
         const float RESPAWN_TIME = 2.0f; // 2 seconds
+        const int SLEEP_TIME = 10; // miliseconds
 
         // Obstacles
         std::vector<std::unique_ptr<obstacle>> obstacles;
@@ -92,7 +93,7 @@ class game_server
 
         std::vector<std::unique_ptr<pickUp>> pickUps;
 
-        // Death and respawn tracking
+        // array to store respowning tanks
         std::vector<RespawnClient> pendingRespawns;
 
 

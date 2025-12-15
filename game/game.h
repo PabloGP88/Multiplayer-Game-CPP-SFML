@@ -2,7 +2,6 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 #include <memory>
-
 #include "ammoBox.h"
 #include "collision_manager.h"
 #include "decorations.h"
@@ -15,7 +14,7 @@
 class Game
 {
 public:
-    Game(int localPlayer);
+    explicit Game(int localPlayer);
 
     void HandleEvents(std::optional<sf::Event> event, int tankId);
     void Update(float dt);

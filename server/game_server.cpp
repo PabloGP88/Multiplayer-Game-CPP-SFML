@@ -41,29 +41,30 @@ game_server::game_server(unsigned short port)
 }
 
 void game_server::Update() {
+
+
     sf::Clock clock;
     float tickTime = 1.0f / TICK_RATE;
-    float accumulator = 0.0f;
+    float time = 0.0f;
 
     Utils::printMsg("Waiting for players to join...", success);
 
     while (true) {
         float dt = clock.restart().asSeconds();
-        accumulator += dt;
+        time += dt;
 
         // Fixed timestep updates
-        while (accumulator >= tickTime) {
+        while (time >= tickTime) {
             ProcessMessages();
             CheckClientTimeouts();
             CheckPendingRespawns();
-            accumulator -= tickTime;
+            time -= tickTime;
         }
 
-        // Send game state to all clientsUDP
         SendGameSnapShot();
 
-        // Sleep to prevent CPU hogging
-        sf::sleep(sf::milliseconds(1));
+        // time to wait before next snapshot to avoid CPU hogging
+        sf::sleep(sf::milliseconds(SLEEP_TIME));
     }
 }
 
@@ -108,7 +109,6 @@ void game_server::ProcessMessages()
     }
 
     // Handle UDP messages
-
     sf::Packet packet;
     std::optional<sf::IpAddress> senderIP;
     unsigned short senderPort;
@@ -125,18 +125,21 @@ void game_server::ProcessMessages()
         case MessageTypeProtocole::TANK_UPDATE: {
                 TankMessage msg;
                 if (packet >> msg) {
-                    // Update heartbeat
-                    auto it = clientsUDP.find(msg.playerId);
-                    if (it != clientsUDP.end()) {
-                        it->second.lastHeartbeat.restart();
+
+                    auto tank = clientsUDP.find(msg.playerId);
+                    if (tank != clientsUDP.end()) {
+
+                        // This logic handles if the client has poor network and the server stops receving info about it
+                        // it will wait the timeout duration before kicking it out, we restart the heartbeat when we receive new packets
+                        tank->second.lastHeartbeat.restart();
                     }
+
                     HandleTankUpdate(msg);
                 }
                 break;
             }
 
             case MessageTypeProtocole::DISCONNECT: {
-                // Handle explicit disconnect
                 int playerId;
                 if (packet >> playerId) {
                     HandleDisconnect(playerId);
@@ -157,7 +160,7 @@ void game_server::ProcessMessages()
             }
 
             default:
-                Utils::printMsg("Unknown UDP message type: " + std::to_string(typeValue), warning);
+                Utils::printMsg("Unknown UDP message, enum value: " + std::to_string(typeValue), warning);
                 break;
         }
     }
@@ -165,24 +168,12 @@ void game_server::ProcessMessages()
 
 void game_server::ProcessMessagesTCP(sf::TcpSocket& socket,MessageTypeProtocole type, sf::Packet& packet)
 {
-    switch (type)
+    if (type ==  MessageTypeProtocole::JOIN_REQUEST)
     {
-    case MessageTypeProtocole::JOIN_REQUEST:
+        JoinRequestMessage message;
+        if (packet >> message)
         {
-            JoinRequestMessage message;
-            if (packet >> message)
-            {
-                HandleJoinRequestTCP(socket, message);
-            }
-            break;
-        }
-    case MessageTypeProtocole::JOIN_REJECTED:
-        {
-            break;
-        }
-    case MessageTypeProtocole::JOIN_ACCEPTED:
-        {
-            break;
+            HandleJoinRequestTCP(socket, message);
         }
     }
 }
@@ -281,7 +272,7 @@ void game_server::HandleTankUpdate(TankMessage msg) {
 
             sf::Packet deathPacket;
             deathPacket << static_cast<uint8_t>(MessageTypeProtocole::PLAYER_DIED) << diedMsg;
-            BroadcastMessage(deathPacket);
+            BroadcastMessageTCP(deathPacket);
 
             // Add to respawn queue, 2 second timer
             pendingRespawns.emplace_back(msg.playerId, -1);
@@ -307,7 +298,6 @@ void game_server::HandleDisconnect(int playerId) {
         tanks.erase(tankIt);
     }
 
-    // Remove client
     clientsUDP.erase(clientIt);
 
     // Notify all clientsUDP
@@ -329,19 +319,19 @@ void game_server::SpawnBullet(int ownerId) {
     if (tank->getAmmo() <= 0) return;
 
     // Calculate bullet spawn position
-    float tipRotation = (tank->barrelRotation + sf::degrees(90)).asRadians();
+    const float tipRotation = (tank->barrelRotation + sf::degrees(90)).asRadians();
     sf::Vector2f barrelTip = tank->position + sf::Vector2f{
         std::cos(tipRotation) * 30.f,  // barrel length
         std::sin(tipRotation) * 30.f
     };
 
-    // Create bullet
-    ServerBullet serverBullet;
-    serverBullet.bulletId = nextBulletId++;
-    serverBullet.ownerId = ownerId;
-    serverBullet.bulletObj = std::make_unique<bullet>(barrelTip, tank->barrelRotation);
-    int bulletId = serverBullet.bulletId;
-    bullets.push_back(std::move(serverBullet));
+
+    Bullet bullet;
+    bullet.bulletId = nextBulletId++;
+    bullet.ownerId = ownerId;
+    bullet.bulletPrefab = std::make_unique<class bullet>(barrelTip, tank->barrelRotation);
+    int bulletId = bullet.bulletId;
+    bullets.push_back(std::move(bullet));
 
 
     // Broadcast bullet spawn
@@ -356,12 +346,12 @@ void game_server::SpawnBullet(int ownerId) {
     packet << static_cast<uint8_t>(MessageTypeProtocole::BULLET_SPAWNED) << msg;
     BroadcastMessage(packet);
 
-    Utils::printMsg("Player " + std::to_string(ownerId) + " fired bullet " +
-                   std::to_string(serverBullet.bulletId), debug);
+    Utils::printMsg("Player " + std::to_string(ownerId) + " fired bullet number " +
+                   std::to_string(bullet.bulletId), debug);
 }
 
 void game_server::SendGameSnapShot() {
-    GameStateMessage state = BuildGameState();
+    GameSnapMessage state = BuildGameState();
 
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::GAME_STATE) << state;
@@ -369,26 +359,26 @@ void game_server::SendGameSnapShot() {
     BroadcastMessage(packet);
 }
 
-GameStateMessage game_server::BuildGameState() {
-    GameStateMessage state;
+GameSnapMessage game_server::BuildGameState() {
+
+    GameSnapMessage snapShot;
 
     // Add all players
-
     for (const auto& [id, tank] : tanks) {
-        GameStateMessage::PlayerState p;
-        p.playerId = id;
-        p.x = tank->position.x;
-        p.y = tank->position.y;
-        p.rotationBody = tank->bodyRotation.asDegrees();
-        p.rotationBarrel = tank->barrelRotation.asDegrees();
-        p.health = tank->getHealth();
-        p.ammo = tank->getAmmo();
-        p.isAlive = tank->IsAlive();
-        p.color = tank->GetColor();
-        state.players.push_back(p);
+        GameSnapMessage::Player player;
+        player.playerId = id;
+        player.x = tank->position.x;
+        player.y = tank->position.y;
+        player.rotationBody = tank->bodyRotation.asDegrees();
+        player.rotationBarrel = tank->barrelRotation.asDegrees();
+        player.health = tank->getHealth();
+        player.ammo = tank->getAmmo();
+        player.isAlive = tank->IsAlive();
+        player.color = tank->GetColor();
+        snapShot.players.push_back(player);
     }
 
-    return state;
+    return snapShot;
 }
 
 void game_server::CheckClientTimeouts() {
@@ -421,10 +411,11 @@ void game_server::BroadcastMessageTCP(sf::Packet& packet) {
     }
 }
 
+// Method that helps me to send data to an specific client
 void game_server::SendToClient(int playerId, sf::Packet& packet) {
-    auto it = clientsUDP.find(playerId);
-    if (it != clientsUDP.end()) {
-        socketUDP.send(packet, it->second.ipAddress, it->second.port);
+    auto client = clientsUDP.find(playerId);
+    if (client != clientsUDP.end()) {
+        socketUDP.send(packet, client->second.ipAddress, client->second.port);
     }
 }
 
@@ -574,6 +565,7 @@ void game_server::SendObstacleSeedTCP(sf::TcpSocket& socket)
     Utils::printMsg("Sent seed to client", debug);
 }
 
+// Go in the list of players waiting to respawn
 void game_server::CheckPendingRespawns()
 {
     for (auto i = pendingRespawns.begin(); i != pendingRespawns.end();)
@@ -602,10 +594,10 @@ void game_server::RespawnPlayer(int playerId) {
     sf::Vector2f respawnPosition = {640.f, 480.f};
     tank->position = respawnPosition;
 
-    auto clientIt = clientsUDP.find(playerId);
-    if (clientIt != clientsUDP.end()) {
-        clientIt->second.prevShootState = false;
-        clientIt->second.isPendingRespawn = false;
+    auto client = clientsUDP.find(playerId);
+    if (client != clientsUDP.end()) {
+        client->second.prevShootState = false;
+        client->second.isPendingRespawn = false;
     }
 
     Utils::printMsg("Bro with id: " + std::to_string(playerId) + " back in action", success);

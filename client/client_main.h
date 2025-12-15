@@ -43,8 +43,8 @@ class client_main
 
 
         // Get Connection state and Player id
-        bool IsConnected() const { return isConnected; }
-        int GetPlayerId() const { return playerId; }
+        [[nodiscard]] bool IsConnected() const { return isConnected; }
+        [[nodiscard]] int GetPlayerId() const { return playerId; }
 
 
         void SendPickupHit(uint8_t pickupId, uint8_t pickupType);

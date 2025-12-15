@@ -21,6 +21,7 @@ add_executable(tank_game
         game/pickUp.cpp
         game/ammoBox.cpp
         game/healthKit.cpp
+        config.h
 )
 
 # Link SFML 3 targets - Use SFML:: namespace (this includes headers automatically)

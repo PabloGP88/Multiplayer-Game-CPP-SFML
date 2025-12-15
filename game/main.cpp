@@ -4,11 +4,13 @@
 #include "utils.h"
 #include "../client/client_main.h"
 #include "../server/game_server.h"
+#include "../config.h"
+
 
 void RunServer() {
     Utils::printMsg("Started as SERVER", success);
 
-    unsigned short port = 53000;
+    unsigned short port = Config::getServerPort();
 
     try {
         game_server server(port);
@@ -23,14 +25,15 @@ void RunClient() {
     Utils::printMsg("Started as CLIENT", success);
 
     // Use local IP - TODO: Talk this to teacher to see if is really what I need to do
-    std::optional<sf::IpAddress> serverIP = sf::IpAddress::getLocalAddress();
+    std::optional<sf::IpAddress> serverIP = sf::IpAddress::resolve(Config::getServerIP());
+    unsigned short serverPort = Config::getServerPort();
+
 
     if (!serverIP.has_value()) {
         Utils::printMsg("Failed to get local IP address", error);
         return;
     }
 
-    unsigned short serverPort = 53000;
 
     Utils::printMsg("Server IP: " + serverIP.value().toString(), info);
 
