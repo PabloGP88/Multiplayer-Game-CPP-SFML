@@ -57,7 +57,7 @@ public:
     // this is the interpolation window in seconds
     const float INTERP_TIME = 0.2f;
 
-    void AddNetworkTankState(int tankId, const GameStateMessage::PlayerState& state);
+    void AddNetworkTankState(int tankId, const GameSnapMessage::Player& state);
 
 private:
 

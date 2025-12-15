@@ -258,7 +258,7 @@ void client_main::ReceiveMessages()
         {
             case MessageTypeProtocole::GAME_STATE:
             {
-                GameStateMessage msg;
+                GameSnapMessage msg;
                 if (packet >> msg)
                 {
                     HandleGameSnapShot(msg);
@@ -300,7 +300,7 @@ void client_main::HandleJoinAccepted(JoinAcceptedMessage msg)
                    " Color: " + playerColour, success);
 }
 
-void client_main::HandleGameSnapShot(GameStateMessage msg)
+void client_main::HandleGameSnapShot(GameSnapMessage msg)
 {
     for (const auto& playerState : msg.players)
     {

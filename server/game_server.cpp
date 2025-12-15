@@ -350,7 +350,7 @@ void game_server::SpawnBullet(int ownerId) {
 }
 
 void game_server::SendGameSnapShot() {
-    GameSnapMessage state = BuildGameState();
+    GameSnapMessage state = BuildGameSnap();
 
     sf::Packet packet;
     packet << static_cast<uint8_t>(MessageTypeProtocole::GAME_STATE) << state;
@@ -358,7 +358,7 @@ void game_server::SendGameSnapShot() {
     BroadcastMessage(packet);
 }
 
-GameSnapMessage game_server::BuildGameState() {
+GameSnapMessage game_server::BuildGameSnap() {
 
     GameSnapMessage snapShot;
 

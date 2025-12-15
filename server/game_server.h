@@ -131,5 +131,5 @@ class game_server
 
         uint16_t SEED;
 
-        GameStateMessage BuildGameState();
+        GameSnapMessage BuildGameSnap();
 };

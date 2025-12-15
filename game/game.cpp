@@ -206,7 +206,7 @@ void Game::InterpolateRemoteTanks(CollisionManager& collisionManager, float dt, 
 	tanks[tankID]->Update(dt, collisionManager);
 }
 
-void Game::AddNetworkTankState(int tankID, const GameStateMessage::PlayerState& state)
+void Game::AddNetworkTankState(int tankID, const GameSnapMessage::Player& state)
 {
 	if (targetStates.find(tankID) != targetStates.end()) {
 		previousStates[tankID] = targetStates[tankID];

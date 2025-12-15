@@ -36,7 +36,7 @@ class client_main
         void ReceiveMessagesTCP();
 
         void HandleJoinAccepted(JoinAcceptedMessage msg);
-        void HandleGameSnapShot(GameStateMessage msg);
+        void HandleGameSnapShot(GameSnapMessage msg);
         void HandlePlayerJoined(PlayerJoinedMessage msg);
         void HandlePlayerLeft(PlayerLeftMessage msg);
         void HandleBulletSpawned(BulletSpawnedMessage msg);
