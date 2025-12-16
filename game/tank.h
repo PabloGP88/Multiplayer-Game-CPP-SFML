@@ -20,7 +20,7 @@ public:
 
     explicit Tank(std::string colour);
 
-    void Update(float dt, CollisionManager& collisionManager);
+    void Update(float dt, const CollisionManager& collisionManager);
     const void Render(sf::RenderWindow &window);
 
     // Shooting functionalities, WE NEED METHOD TO SHOOT, RENDER DE BULLETS AND UPDATE THEIR POSITION FOR EACH TANK

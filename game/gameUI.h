@@ -16,11 +16,9 @@ class gameUI
 public:
 
     gameUI(const sf::Font& f);
-    bool loadFont(const std::string& fontPath);
 
     void Update(Tank& tank);
     void Draw(sf::RenderWindow& window);
-    void SetPosition(sf::Vector2f pos);
 
 private:
 

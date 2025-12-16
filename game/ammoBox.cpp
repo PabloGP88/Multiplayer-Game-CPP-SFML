@@ -11,10 +11,4 @@ ammoBox::ammoBox(sf::Vector2f position,
     : pickUp("Assets/AmmoBox.png", position, worldWidth, worldHeight),
       ammoAmount(ammoAmount)
 {
-    Utils::printMsg("AmmoBox created with " + std::to_string(ammoAmount) + " ammo", success);
-}
-
-bool ammoBox::OnPickup()
-{
-    return true;
 }

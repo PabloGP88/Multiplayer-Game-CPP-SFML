@@ -18,11 +18,8 @@ public:
 
     void HandleEvents(std::optional<sf::Event> event, int tankId);
     void Update(float dt);
-    void NetworkUpdate(float dt, int idTank, TankMessage data);
     void Render(sf::RenderWindow &window);
-    TankMessage GetNetworkUpdate(int id);
-
-    void AddTank(int tankId, std::string tankColour);
+    void AddTank(int tankId, const std::string& tankColour);
 
     void CreatePickups(PickUpMessage& msg);
     int localId;
@@ -67,7 +64,6 @@ private:
     sf::Texture placeholder = sf::Texture(sf::Vector2u(1, 1));
     sf::Texture backgroundTexture;
 
-    void UpdatePickups(float dt);
     void RenderPickups(sf::RenderWindow& window);
 
     decorations decoration;
@@ -75,9 +71,6 @@ private:
     // This can (and probably should) be replaced with std::optional or a unique pointer,
     // to remove the need to use placeholder textures for sprite initialisation.
     sf::Sprite background = sf::Sprite(placeholder);
-    bool receivedColour = false;
-
-    void CreateObstacles();
 
     sf::Font uiFont;
 

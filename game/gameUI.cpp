@@ -22,16 +22,6 @@ gameUI::gameUI(const sf::Font& f)
     ammoText.setOutlineColor(sf::Color::Black);
 }
 
-bool gameUI::loadFont(const std::string& fontPath)
-{
-    if (!font.openFromFile(fontPath))
-        return false;
-
-    healthText.setFont(font);
-    ammoText.setFont(font);
-    return true;
-}
-
 void gameUI::Update(Tank& tank)
 {
     // Convert health and ammo to strings
@@ -105,12 +95,5 @@ void gameUI::Draw(sf::RenderWindow& window)
     // Draw on window
     window.draw(healthText);
     window.draw(ammoText);
-}
-
-void gameUI::SetPosition(sf::Vector2f pos)
-{
-    // Manually position texts relative to given pos (optional)
-    healthText.setPosition(pos);
-    ammoText.setPosition({pos.x, pos.y + healthText.getCharacterSize() + 5.f});
 }
 

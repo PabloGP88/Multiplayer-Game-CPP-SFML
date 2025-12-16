@@ -29,7 +29,6 @@ bool client_main::Connect()
 
     Utils::printMsg("TCP connected to server", success);
 
-    // NOW set to non-blocking for message processingcwith both tcp and udp
     socketTCP.setBlocking(false);
 
     Utils::printMsg("UDP Port: " + std::to_string(socketUDP.getLocalPort()), debug);
@@ -394,7 +393,7 @@ void client_main::HandleObstacles(ObstacleSeedMessage msg)
     if (!game)
         return;
 
-    Utils::printMsg("Obs data received mate", debug);
+    Utils::printMsg("Obs data received", debug);
 
     int numRocks = 10;
     int minSize = 3;
@@ -472,7 +471,7 @@ void client_main::HandlePickUpData(PickUpMessage& msg)
     if (!game)
         return;
 
-    Utils::printMsg("PickUps stuff received mate",debug);
+    Utils::printMsg("PickUps stuff received",debug);
 
     game->CreatePickups(msg);
 }

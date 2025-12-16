@@ -29,10 +29,6 @@ pickUp::pickUp(const std::string& texturePath,
     sprite.setScale({2.f,2.f});
 }
 
-void pickUp::Update(float dt)
-{
-    // Be implemented in ammoBox and health
-}
 
 void pickUp::Render(sf::RenderWindow& window) const
 {

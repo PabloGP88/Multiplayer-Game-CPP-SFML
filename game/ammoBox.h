@@ -15,9 +15,6 @@ class ammoBox: public pickUp
                 float worldHeight = 960.f,
                 int ammoAmount = 5);
 
-
-        bool OnPickup() override;
-
         // Get the amount of ammo this box provides
         int GetAmmoAmount() const { return ammoAmount; }
 

@@ -18,12 +18,10 @@ Game::Game(int localPlayer)
 	{
 		Utils::printMsg("Could not load texture: Assets/tileGrass1.png");
 	}
-	// Replace placeholder texture with a proper background texture, now that we have it.
+
 	background.setTexture(backgroundTexture);
 	background.setTextureRect(sf::IntRect({0, 0}, {1280, 960}));
 
-
-	// --------------------------------------
 
 	tanks[localId] = std::make_unique<Tank>("blue");
 	tanks[localId]->position = {640, 480};
@@ -37,8 +35,7 @@ Game::Game(int localPlayer)
 	camera.setCenter(tanks[localId]->position);
 
 	// Loading Fonts
-
-	if (!uiFont.openFromFile("Assets/MomoTrustDisplay-Regular.ttf")) // Use your font file
+	if (!uiFont.openFromFile("Assets/MomoTrustDisplay-Regular.ttf"))
 	{
 		Utils::printMsg("No font", error);
 	}
@@ -46,7 +43,9 @@ Game::Game(int localPlayer)
 	ui = gameUI(uiFont);
 }
 
-void Game::AddTank(int tankId, std::string tankColour) {
+// Function to Add tanks when they join in client
+void Game::AddTank(const int tankId, const std::string& tankColour) {
+
 	tanks[tankId] = std::make_unique<Tank>(tankColour);
 	tanks[tankId]->position = {640, 480};
 
@@ -58,7 +57,6 @@ void Game::AddTank(int tankId, std::string tankColour) {
 
 void Game::HandleEvents(const std::optional<sf::Event> event, int tankId)
 {
-	// ------------------------------------------------------------------
 
 	if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
 		if (keyPressed->scancode == sf::Keyboard::Scancode::W) {
@@ -78,7 +76,7 @@ void Game::HandleEvents(const std::optional<sf::Event> event, int tankId)
 			tanks[tankId]->isMoving.right = true;
 		}
 
-		// ------------------------------------------------------------------ Barrel Rotation
+		// Barrel Rotation
 
 		if (keyPressed->scancode == sf::Keyboard::Scancode::Right) {
 			tanks[tankId]->isAiming.right = true;
@@ -93,7 +91,6 @@ void Game::HandleEvents(const std::optional<sf::Event> event, int tankId)
 		{
 			if (tanks[tankId]->getAmmo() > 0)
 				tanks[tankId]->wantsToShoot = true;
-			Utils::printMsg("Buddy wants to shoot");
 		}
 
 	}
@@ -138,14 +135,13 @@ void Game::Update(float dt)
 	}
 
 	// Check bullet collisions against all tanks
-
 	for (auto& [shooterId, shooterTank] : tanks) {
 		for (auto& bullet : shooterTank->bullets) {
 			if (!bullet->IsActive()) continue;
 
-			// Check against all other tanks
 			for (auto& [targetId, targetTank] : tanks) {
-				if (targetId == shooterId) continue; // Don't hit yourself
+
+				if (targetId == shooterId) continue; // Skip self
 				if (!targetTank->IsAlive()) continue;
 
 				bullet->CheckTankCollision(targetTank.get());
@@ -156,8 +152,6 @@ void Game::Update(float dt)
 
 
 	camera.setCenter(tanks[localId]->position);
-
-	UpdatePickups(dt);
 
 	for (auto& ammoBox : ammoBoxes)
 	{
@@ -222,7 +216,6 @@ void Game::AddNetworkTankState(int tankID, const GameSnapMessage::Player& state)
 	interpClocks[tankID].restart();
 }
 
-
 sf::Angle Game::findLerpAngle(sf::Angle angle1, sf::Angle angle2, float t)
 {
 	// Formula by shaunlebron - https://gist.github.com/shaunlebron/8832585#file-anglelerp-js-L9
@@ -243,23 +236,6 @@ sf::Angle Game::findLerpAngle(sf::Angle angle1, sf::Angle angle2, float t)
 	return sf::radians(shortestAng);
 }
 
-
-void Game::NetworkUpdate(float dt, int idTank, TankMessage data) {
-	if (tanks.find(idTank) == tanks.end()) {
-		// Map player IDs to colors dynamically
-		std::vector<std::string> colors = {"blue", "red", "green", "black"};
-		std::string color = colors[idTank % colors.size()];
-		AddTank(idTank, color);
-	}
-
-	Tank* remoteTank = tanks[idTank].get();
-	remoteTank->position = {data.x, data.y};
-	remoteTank->bodyRotation = sf::degrees(data.rotationBody);
-	remoteTank->barrelRotation = sf::degrees(data.rotationBarrel);
-	remoteTank->Update(dt, collisionManager);
-}
-
-
 void Game::Render(sf::RenderWindow& window)
 {
 	window.clear(sf::Color(70, 130, 180));
@@ -273,7 +249,7 @@ void Game::Render(sf::RenderWindow& window)
 	{
 		obstacle->Render(window, false);
 	}
-	//
+
 	RenderPickups(window);
 
 	for (auto& [id, tank] : tanks) {
@@ -285,49 +261,6 @@ void Game::Render(sf::RenderWindow& window)
 	ui.Draw(window);
 }
 
-TankMessage Game::GetNetworkUpdate(int id) {
-	return {
-		tanks[id]->position.x,
-		tanks[id]->position.y,
-		tanks[id]->bodyRotation.asDegrees(),
-		tanks[id]->barrelRotation.asDegrees(),
-		tanks[id]->wantsToShoot,
-		tanks[id]->IsAlive()
-	};
-}
-
-void Game::CreateObstacles()
-{
-	int numRocks = 10;
-	int minSize = 3;
-	int maxSize = 6;
-
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_real_distribution<float> posX(0.f, 800.f);
-	std::uniform_real_distribution<float> posY(0.f, 700);
-	std::uniform_int_distribution<int> sizeDist(minSize, maxSize);
-
-	for (int i = 0; i < numRocks; i++)
-	{
-		sf::Vector2f pos = { posX(gen), posY(gen) };
-		int size = sizeDist(gen);
-		sf::Vector2f scale(size, size);
-
-		auto rock = std::make_unique<obstacle>("Assets/Rock.png", pos,
-					  sf::Vector2f(0,0), sf::Vector2f(0,0), scale);
-
-		collisionManager.AddStaticCollider(rock->GetBounds());
-
-		std::uniform_int_distribution<int> brightness(200, 255); // Range for lightness
-
-		sf::Color tint(brightness(gen), brightness(gen), brightness(gen));
-
-		rock->sprite.setColor(tint);
-
-		obstacles.push_back(std::move(rock));
-	}
-}
 
 void Game::CreatePickups(PickUpMessage& msg)
 {
@@ -360,19 +293,6 @@ void Game::CreatePickups(PickUpMessage& msg)
 			health->SetPickupId(pickupData.pickUpId);
 			healthKits.push_back(std::move(health));
 		}
-	}
-}
-
-void Game::UpdatePickups(float dt)
-{
-	for (auto& ammoBox : ammoBoxes)
-	{
-		ammoBox->Update(dt);
-	}
-
-	for (auto& healthKit : healthKits)
-	{
-		healthKit->Update(dt);
 	}
 }
 

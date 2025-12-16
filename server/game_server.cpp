@@ -75,20 +75,18 @@ void game_server::ProcessMessages()
     {
         if (selectorTCP.isReady(listenerTCP))
         {
-            auto client = new sf::TcpSocket();
+            auto client = std::make_unique<sf::TcpSocket>();
             if (listenerTCP.accept(*client) == sf::Socket::Status::Done)
             {
                 client->setBlocking(false);
-                clientsTCP.push_back(client);
                 selectorTCP.add(*client);
+                clientsTCP.push_back(std::move(client));
                 Utils::printMsg("New TCP client connected", success);
-            } else
-            {
-                delete client;
             }
-        } else
+        }
+        else
         {
-            for (auto* client : clientsTCP)
+            for (const auto& client : clientsTCP)
             {
                 if (selectorTCP.isReady(*client))
                 {
@@ -214,7 +212,7 @@ void game_server::HandleJoinRequestTCP(sf::TcpSocket& socket, JoinRequestMessage
 
     clientsUDP.at(playerId).lastHeartbeat.restart();
 
-    Utils::printMsg(std::to_string(msg.udpPort), error);
+    Utils::printMsg("Client UDP port:" + std::to_string(msg.udpPort), debug);
     tanks[playerId] = std::make_unique<Tank>(color);
     tanks[playerId]->position = {640, 480};
 
@@ -251,7 +249,6 @@ void game_server::HandleTankUpdate(TankMessage msg) {
 
     Tank* tank = tankIt->second.get();
 
-    // update from client data
     tank->position = {msg.x, msg.y};
     tank->bodyRotation = sf::degrees(msg.rotationBody);
     tank->barrelRotation = sf::degrees(msg.rotationBarrel);
@@ -262,7 +259,6 @@ void game_server::HandleTankUpdate(TankMessage msg) {
         if (!msg.isAlive && !clientIt->second.isPendingRespawn) {
             Utils::printMsg("Player " + std::to_string(msg.playerId) + " died", error);
 
-            // Mark as pending respawn to prevent duplicate entries
             clientIt->second.isPendingRespawn = true;
 
             // Broadcast death
@@ -287,17 +283,16 @@ void game_server::HandleTankUpdate(TankMessage msg) {
 }
 
 void game_server::HandleDisconnect(int playerId) {
-    auto clientIt = clientsUDP.find(playerId);
-    if (clientIt == clientsUDP.end()) return;
+    auto client = clientsUDP.find(playerId);
+    if (client == clientsUDP.end()) return;
 
-    // Free the color
-    auto tankIt = tanks.find(playerId);
-    if (tankIt != tanks.end()) {
-        FreeColor(tankIt->second->GetColor());
-        tanks.erase(tankIt);
+    auto tank = tanks.find(playerId);
+    if (tank != tanks.end()) {
+        FreeColor(tank->second->GetColor());
+        tanks.erase(tank);
     }
 
-    clientsUDP.erase(clientIt);
+    clientsUDP.erase(client);
 
     // Notify all clientsUDP
     PlayerLeftMessage leftMsg;
@@ -426,7 +421,7 @@ std::string game_server::AssignColor() {
         }
     }
 
-    printf("NO COLOR AVILABLE");
+    Utils::printMsg("NO COLOR AVILABLE", error);
     return "blue";
 }
 
@@ -580,13 +575,13 @@ void game_server::CheckPendingRespawns()
 }
 
 void game_server::RespawnPlayer(int playerId) {
-    auto tankIt = tanks.find(playerId);
-    if (tankIt == tanks.end()) {
+    auto tankPlayer = tanks.find(playerId);
+    if (tankPlayer == tanks.end()) {
         Utils::printMsg("Tank with id:  " + std::to_string(playerId) + " - not found in the vector", error);
         return;
     }
 
-    Tank* tank = tankIt->second.get();
+    Tank* tank = tankPlayer->second.get();
 
     // Respawn at center
     sf::Vector2f respawnPosition = {640.f, 480.f};
@@ -598,7 +593,7 @@ void game_server::RespawnPlayer(int playerId) {
         client->second.isPendingRespawn = false;
     }
 
-    Utils::printMsg("Bro with id: " + std::to_string(playerId) + " back in action", success);
+    Utils::printMsg("Tank with id: " + std::to_string(playerId) + " back in action", success);
 
     // Send respawn notification to all clientsUDP
     PlayerRespawnedMessage respawnMsg;

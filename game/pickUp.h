@@ -17,15 +17,10 @@ class pickUp
 
         virtual ~pickUp() = default;
 
-        virtual void Update(float dt);
-
         void Render(sf::RenderWindow& window) const;
 
         // Check collision with a rectangle (tank bounds)
         bool CheckCollision(const sf::FloatRect& rect) const;
-
-        // Called when picked up - returns true if pickup should be consumed
-        virtual bool OnPickup() = 0;
 
         // Respawn at a random location within boundaries
         void Respawn();
@@ -57,9 +52,5 @@ class pickUp
         static std::mt19937 gen;
 
         uint8_t pickUpdId;
-
-    private:
-        // Border margin to keep pickups away from edges
-        const float BORDER_MARGIN = 100.f;
 
 };

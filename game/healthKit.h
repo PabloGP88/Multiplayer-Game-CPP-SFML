@@ -15,8 +15,6 @@ class healthKit: public pickUp
                   float worldHeight = 960.f,
                   int healAmount = 25);
 
-        bool OnPickup() override;
-
         // Get the amount of health this kit provides
         int GetHealAmount() const { return healAmount; }
 

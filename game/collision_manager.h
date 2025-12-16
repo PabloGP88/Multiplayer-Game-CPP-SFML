@@ -42,10 +42,6 @@ public:
     // Create invisible walls at world edges
     void CreateBoundaryWalls(float thickness = 50.f);
 
-    // Helper function to create FloatRect in SFML 3 style (position + size)
-    static sf::FloatRect MakeRect(float x, float y, float width, float height) {
-        return sf::FloatRect(sf::Vector2f(x, y), sf::Vector2f(width, height));
-    }
 
 private:
     std::vector<CollisionBox> staticColliders;   // Walls, fences, static obstacles

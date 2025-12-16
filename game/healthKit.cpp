@@ -11,10 +11,4 @@ healthKit::healthKit(sf::Vector2f position,
     : pickUp("../Assets/FirstAid.png", position, worldWidth, worldHeight),
       healAmount(healAmount)
 {
-    Utils::printMsg("HealthKit created with " + std::to_string(healAmount) + " heal amount", success);
-}
-
-bool healthKit::OnPickup()
-{
-    return true;
 }

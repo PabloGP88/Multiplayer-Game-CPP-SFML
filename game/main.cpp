@@ -24,7 +24,6 @@ void RunServer() {
 void RunClient() {
     Utils::printMsg("Started as CLIENT", success);
 
-    // Use local IP - TODO: Talk this to teacher to see if is really what I need to do
     std::optional<sf::IpAddress> serverIP = sf::IpAddress::resolve(Config::getServerIP());
     unsigned short serverPort = Config::getServerPort();
 
@@ -82,7 +81,6 @@ void RunClient() {
             client.game->Update(dt);
         }
 
-        // Client Update handles networking such as receiving and sending packages
         client.Update();
 
         window.clear();

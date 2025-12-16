@@ -13,92 +13,81 @@ Tank::Tank(std::string colour)
 	colorString = colour;
 	// Load textures.
 	// FIXME: loadFromFile returns a bool if texture was loaded successfully. We should use it to check for errors.
-	bodyTexture.loadFromFile("Assets/" + colour + "Tank.png");
-	barrelTexture.loadFromFile("Assets/" + colour + "Barrel.png");
+
+	if (!bodyTexture.loadFromFile("Assets/" + colour + "Tank.png"))
+	{
+		Utils::printMsg("Error loading texture from file",error);
+	}
+	if (!barrelTexture.loadFromFile("Assets/" + colour + "Barrel.png"))
+	{
+		Utils::printMsg("Error loading texture from file",error);
+	}
 
 	// Apply tetxures to sprites.
 	body.setTexture(bodyTexture);
 	barrel.setTexture(barrelTexture);
 
 	// Reset texture rectangle. Applying new texture does not automatically apply it's size to sprite.
-	body.setTextureRect(sf::IntRect({ 0, 0 }, (sf::Vector2i)bodyTexture.getSize()));
-	barrel.setTextureRect(sf::IntRect({ 0, 0 }, (sf::Vector2i)barrelTexture.getSize()));
+	body.setTextureRect(sf::IntRect({ 0, 0 }, static_cast<sf::Vector2i>(bodyTexture.getSize())));
+	barrel.setTextureRect(sf::IntRect({ 0, 0 }, static_cast<sf::Vector2i>(barrelTexture.getSize())));
 
-	// Set sprite origins. For bodym use the center of the texture. For barrel, hardcoded value.
-	body.setOrigin((sf::Vector2f)body.getTextureRect().getCenter());
+	body.setOrigin(static_cast<sf::Vector2f>(body.getTextureRect().getCenter()));
 	barrel.setOrigin({ 6, 2 });
 
 	// With the correct offset on the barrel, we can just set barrel position = body position.
 	body.setPosition(position);
 	barrel.setPosition(body.getPosition());
 
-	// Set default barrel rotation to match body rotation.
-	// FIXME: for actual tank game, we would have barrel rotated independently of the body.
 	body.setRotation(bodyRotation);
 	barrel.setRotation(barrelRotation);
 }
 
-void Tank::Update(float dt, CollisionManager& collisionManager)
+void Tank::Update(const float dt, const CollisionManager& collisionManager)
 {
-	// Check if player is Alive
 	if (!IsAlive())
 		return;
 
-	// Update rotation angle based on input.
-
+	// Update rotation angle
 	if (isMoving.left)
 		bodyRotation -= sf::degrees(rotationSpeed * dt);
 	else if (isMoving.right)
 		bodyRotation += sf::degrees(rotationSpeed * dt);
 
-	// Rotating the barrel based on input
 
 	if (isAiming.left)
 		barrelRotation -= sf::degrees(barrelSpeed * dt);
 	else if (isAiming.right)
 		barrelRotation += sf::degrees(barrelSpeed * dt);
 
-	// Calculate direction vector from angle of rotation.
+	// Calculate direction vector from angle of rotation, based on the labs
 	sf::Vector2f body_direction = {
 		std::cos((bodyRotation - sf::degrees(90)).asRadians()),
 		std::sin((bodyRotation - sf::degrees(90)).asRadians())
 	};
 
-	// Update position based on input and direction.
+	// Update position
 	if (isMoving.forward)
 		position -= body_direction * movementSpeed * dt;
 	else if (isMoving.backward)
 		position += body_direction * movementSpeed * dt;
 
-	// Apply new rotation to tank body and barrel.
 	body.setRotation(bodyRotation);
 	barrel.setRotation(barrelRotation);
-
-	// Apply new position to tank body and barrel.
-
 	body.setPosition(position);
 	barrel.setPosition(position);
 
-
 	// Check for collisions after moving
 
-	sf::Vector2f pushback;
+	const sf::FloatRect bounds = GetBounds();
 
-	sf::FloatRect bounds = GetBounds();
-
-
-	if (collisionManager.CheckCollision(bounds, pushback))
+	if (sf::Vector2f pushback; collisionManager.CheckCollision(bounds, pushback))
 	{
-
-		position += pushback; // Move if collision detected
+		// Move if collision detected
+		position += pushback;
 
 		body.setPosition(position);
 		barrel.setPosition(position);
-
-		Utils::printMsg("Collision detected Pushback: " + std::to_string(pushback.x) + ", " + std::to_string(pushback.y), debug);
-
 	}
-
 }
 
 sf::FloatRect Tank::GetBounds() const
@@ -110,30 +99,26 @@ void Tank::Shoot()
 {
 	if (ammo <= 0 && !IsAlive())
 		return;
+
 	// Calculate bullet spawn position at the end of the barrel
-
 	float tipRotation = (barrelRotation + sf::degrees(90)).asRadians();
-	// This is to get the rotation of the barrel so we now the direction of the tip
 
+	// This is to get the rotation of the barrel so we now the direction of the tip
 	sf::Vector2f barrelTip = position + sf::Vector2f{
 		std::cos(tipRotation) * barrelLength,
 		std::sin(tipRotation) * barrelLength
-	}; //Set the start position in the right pos of the tip
+	};
 
-
-	// Create new bullet with barrel's rotation
-	bullets.push_back(std::make_unique<bullet>(barrelTip, barrelRotation, 400.f));
-	ammo -= 1;
+	bullets.push_back(std::make_unique<bullet>(barrelTip, barrelRotation));
 }
 
 void Tank::UpdateBullets(float dt, CollisionManager& collisionManager)
 {
-	// Update all bullets and remove inactive ones
 	for (auto i = bullets.begin(); i != bullets.end();)
 	{
 		(*i)->Update(dt, collisionManager);
 
-		// Remove bullet if it's no longer active
+		// Remove bullet if  no longer active
 		if (!(*i)->IsActive())
 		{
 			i = bullets.erase(i);
@@ -169,7 +154,6 @@ bool Tank::CheckPickupCollision(pickUp* pickup)
 		if (auto* ammoBox = dynamic_cast<::ammoBox*>(pickup))
 		{
 			AddAmmo(ammoBox->GetAmmoAmount());
-			ammoBox->OnPickup();
 			ammoBox->Respawn();
 
 			return true;
@@ -177,7 +161,6 @@ bool Tank::CheckPickupCollision(pickUp* pickup)
 		else if (auto* healthKit = dynamic_cast<::healthKit*>(pickup))
 		{
 			AddHealth(healthKit->GetHealAmount());
-			healthKit->OnPickup();
 			healthKit->Respawn();
 
 			return true;
@@ -187,7 +170,7 @@ bool Tank::CheckPickupCollision(pickUp* pickup)
 	return false;
 }
 
-void Tank::TakeDamage(int damage)
+void Tank::TakeDamage(const int damage)
 {
 	health -= damage;
 	if (health < 0)
@@ -198,14 +181,14 @@ void Tank::TakeDamage(int damage)
 
 	if (health == 0)
 	{
-		Utils::printMsg("Tank DED", error);
+		Utils::printMsg("Tank Died =(", error);
 		body.setColor(sf::Color(255, 0, 0));
 		barrel.setColor(sf::Color(255, 0, 0));
 	}
 }
 
 
-void Tank::AddAmmo(int amount)
+void Tank::AddAmmo(const int amount)
 {
 	if (ammo >= MAX_AMMO)
 		return;
@@ -217,12 +200,11 @@ void Tank::AddAmmo(int amount)
 		ammo = MAX_AMMO;
 }
 
-void Tank::AddHealth(int amount)
+void Tank::AddHealth(const int amount)
 {
 	if (health >= MAX_HEALTH)
 		return;
 
-	int oldHealth = health;
 	health += amount;
 
 	if (health > MAX_HEALTH)

@@ -60,7 +60,7 @@ class game_server
 
         sf::TcpListener listenerTCP;
         sf::SocketSelector selectorTCP;
-        std::vector<sf::TcpSocket*> clientsTCP;
+        std::vector<std::unique_ptr<sf::TcpSocket>> clientsTCP;
 
         sf::UdpSocket socketUDP;
         std::unordered_map<int, ConnectedClient> clientsUDP;
@@ -90,8 +90,6 @@ class game_server
         // PickUps
         std::vector<std::unique_ptr<ammoBox>> ammoBoxes;
         std::vector<std::unique_ptr<healthKit>> healthKits;
-
-        std::vector<std::unique_ptr<pickUp>> pickUps;
 
         // array to store respowning tanks
         std::vector<RespawnClient> pendingRespawns;
