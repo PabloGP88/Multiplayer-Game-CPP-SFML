@@ -125,10 +125,10 @@ void client_main::SendPosition()
     if (!isConnected || !game || playerId == -1)
         return;
 
-    if (sendClock.getElapsedTime().asSeconds() < SEND_RATE)
+    if (clock.getElapsedTime().asSeconds() < SEND_RATE)
         return;
 
-    sendClock.restart();
+    clock.restart();
 
     TankMessage msg = TankPositionMessage();
 

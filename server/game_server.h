@@ -104,6 +104,7 @@ class game_server
         void CheckClientTimeouts();
 
         void BroadcastMessageTCP(sf::Packet& packet);
+        void BroadcastMessage(sf::Packet& packet);
 
         void SendObstacleSeedTCP(sf::TcpSocket& socket);
 
@@ -118,7 +119,6 @@ class game_server
 
         void CreatePickUps();
 
-        void BroadcastMessage(sf::Packet& packet);
         void SendToClient(int playerId, sf::Packet& packet);
 
         void CheckPendingRespawns();

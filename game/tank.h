@@ -23,7 +23,7 @@ public:
     void Update(float dt, CollisionManager& collisionManager);
     const void Render(sf::RenderWindow &window);
 
-    // Shooting functionalities, wE NEED METHOD TO SHOOT, RENDER DE BULLETS AND UPDATE THEIR POSITION FOR EACH TANK
+    // Shooting functionalities, WE NEED METHOD TO SHOOT, RENDER DE BULLETS AND UPDATE THEIR POSITION FOR EACH TANK
     void Shoot();
     void UpdateBullets(float dt, CollisionManager& collisionManager);
     void RenderBullets(sf::RenderWindow& window);

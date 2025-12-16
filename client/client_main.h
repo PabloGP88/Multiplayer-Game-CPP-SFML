@@ -23,25 +23,6 @@ class client_main
         bool Connect();
         void Disconnect();
 
-        // Input Logic
-        void SendPosition();
-
-        void HandleObstacles(ObstacleSeedMessage msg);
-        void HandlePlayerDied(PlayerDiedMessage msg);
-        void HandlePlayerRespawned(PlayerRespawnedMessage msg);
-        void HandlePickUpData(PickUpMessage& msg);
-        void HandlePickUpUpdated(PickUpUpdatedMessage& msg);
-
-        void ReceiveMessages();
-        void ReceiveMessagesTCP();
-
-        void HandleJoinAccepted(JoinAcceptedMessage msg);
-        void HandleGameSnapShot(GameSnapMessage msg);
-        void HandlePlayerJoined(PlayerJoinedMessage msg);
-        void HandlePlayerLeft(PlayerLeftMessage msg);
-        void HandleBulletSpawned(BulletSpawnedMessage msg);
-
-
         // Get Connection state and Player id
         [[nodiscard]] bool IsConnected() const { return isConnected; }
         [[nodiscard]] int GetPlayerId() const { return playerId; }
@@ -60,12 +41,30 @@ class client_main
         unsigned short serverPort;
         bool isConnected;
 
+        void ReceiveMessages();
+        void ReceiveMessagesTCP();
+
+        // Input Logic
+        void SendPosition();
+
+        void HandleObstacles(ObstacleSeedMessage msg);
+        void HandlePlayerDied(PlayerDiedMessage msg);
+        void HandlePlayerRespawned(PlayerRespawnedMessage msg);
+        void HandlePickUpData(PickUpMessage& msg);
+        void HandlePickUpUpdated(PickUpUpdatedMessage& msg);
+
+        void HandleJoinAccepted(JoinAcceptedMessage msg);
+        void HandleGameSnapShot(GameSnapMessage msg);
+        void HandlePlayerJoined(PlayerJoinedMessage msg);
+        void HandlePlayerLeft(PlayerLeftMessage msg);
+        void HandleBulletSpawned(BulletSpawnedMessage msg);
+
         // Player info
         int playerId;
         std::string playerColour;
 
         // Timing
-        sf::Clock sendClock;
+        sf::Clock clock;
         const float SEND_RATE = 1.0f / 60.0f;  // 60 updates per second
 
         // Helper methods
